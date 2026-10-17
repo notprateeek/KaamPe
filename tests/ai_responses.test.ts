@@ -213,9 +213,12 @@ describe('Safety, injection and localization safeguards', () => {
   });
 
   it('rejects a grievance draft that names a platform the user never mentioned', async () => {
-    vi.mocked(extractIntent).mockResolvedValue({ intent: 'grievance', dispute: { amount: 3200 } });
-    generateContent.mockResolvedValue({ text: JSON.stringify({ draftMessage: 'Dear Zomato, my ₹3200 is pending.', providedFacts: null }) });
-    const { body } = await chat('My ₹3200 payment is pending');
+    // Both relevant facts are present, so this goes straight to drafting (a missing fact would trigger a question first).
+    vi.mocked(extractIntent).mockResolvedValue({ intent: 'grievance', dispute: { amount: 3200, days: 8 } });
+    generateContent.mockResolvedValue({ text: JSON.stringify({ draftMessage: 'Dear Zomato, my ₹3200 is pending for 8 days.', providedFacts: null }) });
+    const { body } = await chat('My ₹3200 payment is pending for 8 days');
+    expect(body.type).toBe('grievance');
+    expect(body.draftMessage).toContain('₹3200');
     expect(body.draftMessage).not.toContain('Zomato');
   });
 
