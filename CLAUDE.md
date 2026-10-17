@@ -13,7 +13,8 @@ Two processes run in development: the Express API on :3001 and Vite on :5173 (Vi
 ```bash
 npm run server        # API server (tsx server/index.ts) — no watch mode
 npm run dev           # Vite frontend
-npm run typecheck     # tsc --noEmit over src, server, tests (no linter is configured)
+npm run typecheck     # tsc --noEmit over src, server, tests
+npm run lint          # ESLint (typescript-eslint + react-hooks); CI also runs test:coverage
 npm run build         # vite build -> dist/
 npm test              # vitest unit tests (tests/**/*.test.ts, node env)
 npx vitest run tests/calculator.test.ts      # single unit test file
@@ -32,7 +33,8 @@ Environment (`.env`, see `.env.example`; validated by Zod in `server/config/env.
 
 **`shared/`** holds data used by both server and client: `helplines.ts` (SOS dialog + safety-prompt reference) and `schemes.ts` (curated schemes, income limits in paise).
 
-- **Guest sessions, no auth.** `server/middleware/session.ts` runs on every `/api` route: reads `X-Session-ID` header or `kaampe_session_id` cookie (must match `^[a-zA-Z0-9_-]{16,64}$`, else a new `kp_…` id is generated), upserts a `sessions` row, and sets `req.sessionId` / `req.sessionProfile`. All data queries must be scoped by `session_id`; `tests/security_e2e.spec.ts` checks that one session can't read/delete another's entries (expects 403). E2E/API tests set identity via the `X-Session-ID` header.
+- **Sign-in (`server/routes/auth.ts`, mounted before the session middleware).** The client shows `features/auth/LoginScreen` until the visitor picks one-tap demo (`POST /api/auth/demo`, seeded by `services/demo/seed.ts`, ids prefixed `kp_demo_`), signs in / up (`accounts` table, scrypt; an account owns one session and its id is rotated with all rows moved on signup/login/logout), or continues as a guest (`kaampe_guest`). Admin credentials on `/api/auth/login` set the admin cookie; `/admin` is the operator panel (`routes/admin.ts`, aggregates only, 404 in production while `ADMIN_PASSWORD` is the default).
+- **Guest sessions.** `server/middleware/session.ts` runs on every `/api` route: reads `X-Session-ID` header or `kaampe_session_id` cookie (must match `^[a-zA-Z0-9_-]{16,64}$`, else a new `kp_…` id is generated), upserts a `sessions` row, and sets `req.sessionId` / `req.sessionProfile`. All data queries must be scoped by `session_id`; `tests/security_e2e.spec.ts` checks that one session can't read/delete another's entries (expects 403). E2E/API tests set identity via the `X-Session-ID` header.
 - **Database.** `server/db/index.ts` opens SQLite via `node:sqlite` `DatabaseSync` at `data/kaampe.db` (WAL), and creates the schema inline with `CREATE TABLE IF NOT EXISTS` on import — there are no migrations. Tables: `sessions`, `money_entries`, `conversations`, `messages`. Importing the db module (including from tests) creates the file.
 - **Money is integer paise.** `money_entries.amount_paise` is an integer; all conversion and aggregation goes through `server/services/money/calculator.ts` (`rupeesToPaise`, `calculateDailySummary`, `calculateWeeklySummary`, `formatRupees`). API payloads accept rupees and convert on write. Never do money arithmetic in floating-point rupees.
 - **AI pipeline (`server/routes/ai.ts` + `server/services/ai/gemini.ts`).** `POST /api/ai/chat` first classifies intent with Gemini structured JSON output (validated by the Zod `IntentSchema`; on any model/parse failure it falls back to regex-based `fallbackIntentExtraction`, which handles Hinglish phrasing). It then routes by intent:
@@ -43,6 +45,9 @@ Environment (`.env`, see `.env.example`; validated by Zod in `server/config/env.
   - `safety` / `general` → conversational guidance.
   Each call sets thinking via `thinkingConfigFor` (`thinkingLevel: LOW` on Gemini 3 models; `MINIMAL` is rejected by gemini-3.8-flash). User-facing strings in server responses are hard-coded per language (`hi`/`pa`/`en` branches).
   All prompts are built in `server/services/ai/prompts.ts`: user text goes through `wrapUserInput` and every prompt includes `SAFETY_RULES`. Gemini calls go through `services/ai/client.ts` (timeouts, one retry, `thinkingConfigFor`). `services/ai/safety.ts` masks Aadhaar/account/OTP numbers before they reach the model and drops non-helpline phone numbers from answers.
+- `GET`/`DELETE /api/ai/history` return / forget the session's saved chat (money confirmation cards are replayed as plain text, never as a card). Chat answers get the last 6 turns (≤6h old) as context via `wrapWithContext`, inside the `<user_input>` block.
+- `POST /api/ai/safety` (safety coach) and `POST /api/ai/money-insights` (last 30 days; facts computed in paise by `services/money/insights.ts`, model text rejected if it uses any number not in the facts).
+- `middleware/originCheck.ts` returns 403 `cross_site_blocked` for state-changing `/api` calls from another origin (no `Origin` header passes).
 - `POST /api/ai/schemes/eligibility` is deterministic (no LLM): `server/services/schemes/match.ts` matches a profile against `shared/schemes.ts`; "unknown" answers never exclude a scheme.
 - Money amounts are parsed with `parseRupeeAmount`/`validateEntryDate` (calculator.ts); "today" and the weekly window are in IST.
 - `POST /api/document/explain` takes a multer upload (field `document`, PDF/JPG/PNG, ≤10MB, mime+extension+magic bytes checked) into `uploads_tmp/`, sends it inline as base64 to Gemini.
@@ -58,6 +63,6 @@ Environment (`.env`, see `.env.example`; validated by Zod in `server/config/env.
 
 ## Design system
 
-`DESIGN.md` is an Intercom-derived design reference (cream canvas, white hairline cards, charcoal ink, single accent). `tailwind.config.js` adapts it: tokens `canvas`, `surface-1/2`, `ink(-muted/-subtle)`, `hairline(-soft)`, `accent` (`#b83808`, darker than DESIGN.md's Fin Orange for contrast), `semantic-*`, radii `card`/`subtle`; font is Inter + Noto Sans Devanagari/Gurmukhi instead of Saans. Use these tokens rather than raw colors. `tests/a11y.spec.ts` fails on any critical/serious axe-core WCAG 2.2 AA violation, so color/contrast changes must keep passing it.
+`DESIGN.md` is an Intercom-derived design reference (cream canvas, white hairline cards, charcoal ink, single accent). Colours are CSS variables (`--c-*` RGB channels in `src/index.css`) with a `html.dark` override; `public/theme-init.js` applies the saved theme before first paint. Use `text-inverse` (not `text-white`) on `bg-ink` fills and `text-marigold-ink` on `bg-marigold`, since ink flips in dark mode. `tailwind.config.js` adapts it: tokens `canvas`, `surface-1/2`, `ink(-muted/-subtle)`, `hairline(-soft)`, `accent` (`#b83808`, darker than DESIGN.md's Fin Orange for contrast), `semantic-*`, radii `card`/`subtle`; font is Inter + Noto Sans Devanagari/Gurmukhi instead of Saans. Use these tokens rather than raw colors. `tests/a11y.spec.ts` fails on any critical/serious axe-core WCAG 2.2 AA violation, so color/contrast changes must keep passing it.
 
 Test files reference numbered "Sections" (e.g. Section 44–46, Section 7) of a product spec that is not in the repo.

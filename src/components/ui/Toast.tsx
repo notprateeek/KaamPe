@@ -42,9 +42,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         {toast && (
           <div
             key={toast.id}
-            className="animate-rise pointer-events-auto fixed left-1/2 -translate-x-1/2 z-50 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] md:bottom-8 w-[calc(100%-2rem)] max-w-sm flex items-center gap-3 rounded-subtle bg-ink text-white pl-4 pr-1.5 py-1.5 min-h-[52px] shadow-float"
+            className="animate-rise pointer-events-auto fixed left-1/2 -translate-x-1/2 z-50 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] md:bottom-8 w-[calc(100%-2rem)] max-w-sm flex items-center gap-3 rounded-subtle bg-ink text-inverse pl-4 pr-1.5 py-1.5 min-h-[52px] shadow-float"
           >
-            <Check className="w-4 h-4 shrink-0 text-marigold" aria-hidden="true" />
+            <Check className="w-4 h-4 shrink-0 text-inverse-accent" aria-hidden="true" />
             <span className="flex-1 min-w-0 text-sm font-medium">{toast.message}</span>
             {toast.action && (
               <button
@@ -53,7 +53,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   toast.action?.onAction();
                   setToast(null);
                 }}
-                className="shrink-0 min-h-[44px] px-3 rounded-[10px] text-sm font-bold text-marigold hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold"
+                className="shrink-0 min-h-[44px] px-3 rounded-[10px] text-sm font-bold text-inverse-accent hover:bg-inverse/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold"
               >
                 {toast.action.label}
               </button>

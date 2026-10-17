@@ -10,6 +10,8 @@ import {
   validateEntryDate,
   addDaysToDateString,
   parseRupeeAmount,
+  parseTrips,
+  parseWorkHours,
   MoneyValidationError,
   MoneyEntryRecord,
 } from '../services/money/calculator.js';
@@ -29,6 +31,10 @@ const CreateEarningSchema = z.object({
   source: z.string().trim().max(50).optional().nullable(),
   date: DateInput.optional(),
   note: z.string().trim().max(200).optional().nullable(),
+  /** Optional: deliveries / rides / tasks done (whole number, 0-1000). */
+  trips: z.union([z.number(), z.string().max(8)]).optional().nullable(),
+  /** Optional: hours worked (0-24, decimals allowed), stored as whole minutes. */
+  hours: z.union([z.number(), z.string().max(8)]).optional().nullable(),
 });
 
 const CreateExpenseSchema = z.object({
@@ -69,6 +75,8 @@ function rowToRecord(row: any): MoneyEntryRecord {
     date: row.date,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    trips: row.trips ?? null,
+    workMinutes: row.work_minutes ?? null,
   };
 }
 
@@ -106,16 +114,19 @@ router.get('/summary', (req, res) => {
 });
 
 const MAX_ENTRIES_RETURNED = 1000;
+/** `?all=1` (records export): the worker's full history, with a safety ceiling far above real use. */
+const MAX_ENTRIES_EXPORTED = 50_000;
 
 // GET /api/money/entries - Get entries for this session (newest first, bounded)
 router.get('/entries', (req, res) => {
   const sessionId = req.sessionId;
+  const limit = req.query.all === '1' ? MAX_ENTRIES_EXPORTED : MAX_ENTRIES_RETURNED;
   const rows = db.prepare(`
     SELECT * FROM money_entries
     WHERE session_id = ?
     ORDER BY date DESC, created_at DESC
-    LIMIT ${MAX_ENTRIES_RETURNED}
-  `).all(sessionId);
+    LIMIT ?
+  `).all(sessionId, limit);
 
   const entries = rows.map((r) => {
     const rec = rowToRecord(r);
@@ -144,15 +155,24 @@ router.post('/earning', (req, res) => {
     });
   }
   const { amountPaise, date } = checked;
+  let trips: number | null;
+  let workMinutes: number | null;
+  try {
+    trips = parseTrips(parsed.data.trips);
+    workMinutes = parseWorkHours(parsed.data.hours);
+  } catch (err) {
+    const field = String((err as Error).message).startsWith('Trips') ? 'trips' : 'hours';
+    return sendApiError(req, res, 400, 'validation_failed', { details: [{ path: [field], message: (err as Error).message }] });
+  }
   const source = parsed.data.source || null;
   const note = parsed.data.note || null;
   const id = 'entry_' + crypto.randomUUID();
   const now = Date.now();
 
   db.prepare(`
-    INSERT INTO money_entries (id, session_id, type, amount_paise, category_or_source, note, date, created_at, updated_at)
-    VALUES (?, ?, 'earning', ?, ?, ?, ?, ?, ?)
-  `).run(id, req.sessionId, amountPaise, source, note, date, now, now);
+    INSERT INTO money_entries (id, session_id, type, amount_paise, category_or_source, note, date, created_at, updated_at, trips, work_minutes)
+    VALUES (?, ?, 'earning', ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, req.sessionId, amountPaise, source, note, date, now, now, trips, workMinutes);
 
   res.status(201).json({
     success: true,
@@ -167,6 +187,8 @@ router.post('/earning', (req, res) => {
       date,
       createdAt: now,
       updatedAt: now,
+      trips,
+      workMinutes,
     },
   });
 });

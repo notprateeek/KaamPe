@@ -12,6 +12,13 @@ import path from 'path';
 
 async function completeOnboarding(page: Page) {
   await page.goto('/');
+  // Login gate (first visit): continue as a guest, which leads to onboarding.
+  const guestBtn = page.getByRole('button', { name: /Bina account ke aage badhein/i });
+  await expect(guestBtn.or(page.getByText('Namaste 👋'))).toBeVisible({ timeout: 10000 });
+  if (await guestBtn.isVisible()) {
+    await guestBtn.click();
+    await page.getByRole('button', { name: /हिन्दी/i }).waitFor();
+  }
   const hindiBtn = page.getByRole('button', { name: /हिन्दी/i });
   if (await hindiBtn.isVisible()) {
     await hindiBtn.click();
@@ -61,7 +68,7 @@ test.describe('Guided grievance', () => {
   test('Chat: "Payment nahi mili" leads to questions and "Pata nahi" is accepted', async ({ page }) => {
     await completeOnboarding(page);
     await page.getByPlaceholder(/Kaam, paise, rights/i).fill('Payment nahi mili');
-    await page.getByRole('button', { name: 'Poochhein' }).click();
+    await page.getByRole('button', { name: 'Poochhein', exact: true }).click();
     await expect(page.getByText('Kitne rupaye ki payment baaki hai?')).toBeVisible({ timeout: 30000 });
 
     await page.getByLabel('Aapka jawab').fill('3200 rupaye');
@@ -74,6 +81,24 @@ test.describe('Guided grievance', () => {
     // Unknown duration is not invented.
     expect(await draft.inputValue()).not.toMatch(/kuch din|several days|\d+\s*din/i);
     expect(await draft.inputValue()).not.toMatch(PLATFORMS);
+  });
+
+  test('Chat: a complaint with every fact given goes straight to the draft, and survives a tab switch', async ({ page }) => {
+    await completeOnboarding(page);
+    await page.getByPlaceholder(/Kaam, paise, rights/i).fill('Meri ₹3200 payment 8 din se pending hai.');
+    await page.getByRole('button', { name: 'Poochhein', exact: true }).click();
+
+    const draft = page.locator('textarea[id^="chat-"][id$="-draft"]');
+    await expect(draft).toHaveValue(/3,?200/, { timeout: 30000 });
+    await expect(draft).toHaveValue(/8/);
+    // No questions: the facts were already complete.
+    await expect(page.getByRole('button', { name: 'Pata nahi' })).toHaveCount(0);
+
+    // The worker's edit is kept when they leave Home and come back.
+    await draft.fill('Namaste, meri ₹3200 ki payment 8 din se pending hai.');
+    await page.getByRole('button', { name: 'Money' }).click();
+    await page.getByRole('button', { name: 'Home', exact: true }).click();
+    await expect(page.locator('textarea[id^="chat-"][id$="-draft"]')).toHaveValue('Namaste, meri ₹3200 ki payment 8 din se pending hai.');
   });
 });
 

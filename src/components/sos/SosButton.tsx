@@ -79,7 +79,7 @@ export const SosButton: React.FC = () => {
         onClick={() => setOpen(true)}
         aria-label={t.sos.buttonLabel}
         aria-haspopup="dialog"
-        className="fixed z-40 right-4 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] md:right-8 md:bottom-8 w-14 h-14 rounded-full bg-semantic-error text-white text-sm font-extrabold tracking-wide shadow-float border-2 border-surface-1 flex items-center justify-center hover:opacity-90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ink focus-visible:ring-offset-2 active:scale-95 transition"
+        className="fixed z-40 right-4 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] md:right-8 md:bottom-8 w-14 h-14 rounded-full bg-semantic-error text-inverse text-sm font-extrabold tracking-wide shadow-float border-2 border-surface-1 flex items-center justify-center hover:opacity-90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ink focus-visible:ring-offset-2 active:scale-95 transition"
       >
         SOS
       </button>

@@ -3,12 +3,14 @@ import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import express from 'express';
 import { createApp } from '../server/index';
 import { loadEnv } from '../server/config/env';
 import { errorHandler } from '../server/middleware/errorHandler';
 import { db } from '../server/db/index';
+import { hasMatchingMagicBytes } from '../server/routes/document';
 
 let server: Server;
 let base: string;
@@ -230,6 +232,23 @@ describe('Document upload hardening', () => {
   it('rejects a PNG whose bytes are actually a JPEG', async () => {
     const res = await upload('photo.png', 'image/png', Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0]));
     expect(res.status).toBe(400);
+  });
+
+  it('accepts WebP by its RIFF....WEBP header and rejects other RIFF files (e.g. WAV) named .webp', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kaampe-webp-'));
+    try {
+      const webp = path.join(dir, 'a.webp');
+      const wav = path.join(dir, 'b.webp');
+      fs.writeFileSync(webp, Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8 ')]));
+      fs.writeFileSync(wav, Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WAVEfmt ')]));
+      expect(hasMatchingMagicBytes(webp, 'image/webp')).toBe(true);
+      expect(hasMatchingMagicBytes(wav, 'image/webp')).toBe(false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+    const res = await upload('photo.webp', 'image/webp', Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WAVEfmt ')]));
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe('unsupported_file_type');
   });
 
   it('rejects disallowed file types with 400', async () => {

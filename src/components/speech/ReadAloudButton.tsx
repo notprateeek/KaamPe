@@ -1,6 +1,6 @@
 import React from 'react';
 import { Volume2, Square } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { SPEECH_RATES, useApp } from '../../context/AppContext';
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis';
 import type { Language } from '../../i18n/translations';
 
@@ -21,8 +21,11 @@ export const actionButtonClass =
  * Renders nothing without speechSynthesis.
  */
 export const ReadAloudButton: React.FC<ReadAloudButtonProps> = ({ text, lang, className = '' }) => {
-  const { t, profile } = useApp();
-  const { supported, speaking, failed, voiceMissing, speak, stop } = useSpeechSynthesis(lang ?? profile.language);
+  const { t, profile, speechRate } = useApp();
+  const { supported, speaking, failed, voiceMissing, speak, stop } = useSpeechSynthesis(
+    lang ?? profile.language,
+    SPEECH_RATES[speechRate]
+  );
 
   if (!supported || !text.trim()) return null;
 
@@ -31,6 +34,7 @@ export const ReadAloudButton: React.FC<ReadAloudButtonProps> = ({ text, lang, cl
       <button
         type="button"
         onClick={() => (speaking ? stop() : speak(text, lang ?? profile.language))}
+        data-no-tap-to-hear
         title={t.speech.listenHint}
         className={`${actionButtonClass} ${speaking ? 'border-accent text-accent' : ''} ${className}`}
       >

@@ -13,6 +13,10 @@ export interface MoneyEntry {
   note: string | null;
   date: string;
   createdAt: number;
+  /** Earnings only, optional: deliveries / rides done. */
+  trips?: number | null;
+  /** Earnings only, optional: time worked in minutes. */
+  workMinutes?: number | null;
 }
 
 export interface DaySummary {
@@ -88,6 +92,10 @@ export interface PlatformStat {
   netPaise: number;
   netPerDayPaise: number;
   sharePct: number;
+  /** Earnings per trip, from entries that recorded trips (null when none did). */
+  earnPerTripPaise: number | null;
+  /** Earnings per hour, from entries that recorded hours (null when none did). */
+  earnPerHourPaise: number | null;
 }
 
 /**
@@ -102,6 +110,8 @@ export function computePlatformStats(entries: MoneyEntry[], weekDates: string[])
   const perDay = new Map<string, Map<string, number>>();
   const expensesPerDay = new Map<string, number>();
   const labels = new Map<string, string | null>();
+  // Per platform: earnings that came with a trip count / hours, and those totals.
+  const work = new Map<string, { tripEarn: number; trips: number; hourEarn: number; minutes: number }>();
 
   for (const e of entries) {
     if (!dates.has(e.date) || !Number.isInteger(e.amountPaise)) continue;
@@ -112,6 +122,16 @@ export function computePlatformStats(entries: MoneyEntry[], weekDates: string[])
     const name = e.categoryOrSource?.trim() || null;
     const key = name ? name.toLowerCase() : '__none__';
     if (!labels.has(key)) labels.set(key, name);
+    const w = work.get(key) ?? { tripEarn: 0, trips: 0, hourEarn: 0, minutes: 0 };
+    if (typeof e.trips === 'number' && e.trips > 0) {
+      w.tripEarn += e.amountPaise;
+      w.trips += e.trips;
+    }
+    if (typeof e.workMinutes === 'number' && e.workMinutes > 0) {
+      w.hourEarn += e.amountPaise;
+      w.minutes += e.workMinutes;
+    }
+    work.set(key, w);
     const day = perDay.get(e.date) ?? new Map<string, number>();
     day.set(key, (day.get(key) ?? 0) + e.amountPaise);
     perDay.set(e.date, day);
@@ -147,6 +167,7 @@ export function computePlatformStats(entries: MoneyEntry[], weekDates: string[])
   return [...stats.entries()]
     .map(([key, s]) => {
       const net = s.earnings - s.expenses;
+      const w = work.get(key);
       return {
         key,
         label: labels.get(key) ?? null,
@@ -156,6 +177,8 @@ export function computePlatformStats(entries: MoneyEntry[], weekDates: string[])
         netPaise: net,
         netPerDayPaise: Math.round(net / s.days),
         sharePct: weekEarnings > 0 ? Math.round((s.earnings * 100) / weekEarnings) : 0,
+        earnPerTripPaise: w && w.trips > 0 ? Math.round(w.tripEarn / w.trips) : null,
+        earnPerHourPaise: w && w.minutes > 0 ? Math.round((w.hourEarn * 60) / w.minutes) : null,
       };
     })
     .sort((a, b) => b.earningsPaise - a.earningsPaise);
@@ -167,11 +190,66 @@ export async function fetchMoneySummary(): Promise<MoneySummary> {
   return res.json();
 }
 
-export async function fetchMoneyEntries(): Promise<MoneyEntry[]> {
-  const res = await fetch('/api/money/entries', { credentials: 'include' });
+/** `all` returns the full history (for export and lifetime stats) instead of the newest 1000. */
+export async function fetchMoneyEntries(options: { all?: boolean } = {}): Promise<MoneyEntry[]> {
+  const res = await fetch(options.all ? '/api/money/entries?all=1' : '/api/money/entries', { credentials: 'include' });
   if (!res.ok) throw new Error(`entries ${res.status}`);
   const json = await res.json();
   return Array.isArray(json.entries) ? json.entries : [];
+}
+
+export type MoneyEntryKind = 'earning' | 'expense';
+
+/** A failed save; `serverMessage` is the server's localized `{ error }` text when it sent one. */
+export class MoneySaveError extends Error {
+  constructor(
+    readonly status: number,
+    readonly serverMessage: string | null
+  ) {
+    super(`save ${status}`);
+  }
+}
+
+/**
+ * Saves one entry for this session and returns its id (for Undo). `paise` is
+ * sent as rupees with at most 2 decimals; the server converts back to paise.
+ */
+export async function saveMoneyEntry(
+  kind: MoneyEntryKind,
+  paise: number,
+  fields: { date: string; source?: string; category?: string; note?: string; trips?: number; hours?: string }
+): Promise<string | undefined> {
+  const res = await fetch(`/api/money/${kind}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ amount: paise / 100, ...fields }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message = typeof body?.error === 'string' && body.error.trim() ? body.error : null;
+    throw new MoneySaveError(res.status, message);
+  }
+  return typeof body?.entry?.id === 'string' ? body.entry.id : undefined;
+}
+
+/**
+ * Optional trips / hours typed with an earning. Blank fields are left out;
+ * returns null if either is filled but not valid (trips 0-1000, hours 0-24).
+ */
+export function parseWorkFields(trips: string, hours: string): { trips?: number; hours?: string } | null {
+  const out: { trips?: number; hours?: string } = {};
+  const tr = trips.trim();
+  if (tr) {
+    if (!/^\d{1,4}$/.test(tr) || Number(tr) > 1000) return null;
+    out.trips = Number(tr);
+  }
+  const hr = hours.trim();
+  if (hr) {
+    if (!/^\d{1,2}(\.\d{1,2})?$/.test(hr) || Number(hr) <= 0 || Number(hr) > 24) return null;
+    out.hours = hr;
+  }
+  return out;
 }
 
 /** Deletes one of this session's entries (used for Undo). Throws on failure. */
@@ -200,11 +278,13 @@ export function entriesToCsv(entries: MoneyEntry[]): string {
         paiseToPlain(e.type === 'expense' ? -e.amountPaise : e.amountPaise),
         e.categoryOrSource ?? '',
         e.note ?? '',
+        typeof e.trips === 'number' ? String(e.trips) : '',
+        typeof e.workMinutes === 'number' ? String(Math.round((e.workMinutes / 60) * 100) / 100) : '',
       ]
         .map(csvCell)
         .join(',')
     );
-  return ['date,type,amount_rupees,source_or_category,note', ...rows].join('\n');
+  return ['date,type,amount_rupees,source_or_category,note,trips,hours', ...rows].join('\n');
 }
 
 /** Distinct days with at least one entry, and the run of consecutive days ending today (or yesterday). */

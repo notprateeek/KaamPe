@@ -12,10 +12,15 @@ import { loadEnv, type ServerEnv } from './config/env.js';
 import { sessionMiddleware } from './middleware/session.js';
 import { createRateLimiter, ipKey } from './middleware/rateLimit.js';
 import { errorHandler, apiNotFound } from './middleware/errorHandler.js';
+import { createOriginCheck } from './middleware/originCheck.js';
+import { activeProvider } from './services/ai/gemini.js';
 import sessionRouter from './routes/session.js';
 import moneyRouter from './routes/money.js';
 import aiRouter from './routes/ai.js';
 import docRouter from './routes/document.js';
+import { createAuthRouter } from './routes/auth.js';
+import { createAdminRouter } from './routes/admin.js';
+import { createAdminAuth } from './services/auth/adminToken.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -96,6 +101,9 @@ export function createApp(env: ServerEnv = loadEnv()) {
     next();
   });
 
+  // CSRF: state-changing API calls must come from this site (requests without Origin, like curl, pass).
+  app.use('/api', createOriginCheck({ allowedOrigin: env.CORS_ORIGIN, isProduction: env.isProduction }));
+
   // Coarse per-IP ceiling first (before any DB work), so rotating session ids can't bypass limits.
   const ipLimiter = createRateLimiter({
     name: 'ip',
@@ -111,6 +119,22 @@ export function createApp(env: ServerEnv = loadEnv()) {
   app.use(express.json({ limit: '100kb' }));
   app.use(express.urlencoded({ extended: false, limit: '20kb' }));
   app.use(cookieParser());
+
+  // Password guessing guard for the demo and admin logins (per IP, before any DB work)
+  const loginLimiter = createRateLimiter({
+    name: 'login',
+    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    max: env.isProduction ? 10 : 200,
+    keyGenerator: ipKey,
+    enabled: env.RATE_LIMIT_ENABLED,
+  });
+  app.use(['/api/auth/demo-login', '/api/auth/login', '/api/auth/signup', '/api/admin/login'], loginLimiter);
+
+  // Demo login/logout and the operator panel replace or skip the guest session,
+  // so they are mounted before the session middleware (no stray guest rows/cookies).
+  const adminAuth = createAdminAuth(env);
+  app.use('/api/auth', createAuthRouter(env, adminAuth));
+  app.use('/api/admin', createAdminRouter(adminAuth));
 
   // Guest session middleware for all API routes
   app.use('/api', sessionMiddleware);
@@ -140,6 +164,8 @@ export function createApp(env: ServerEnv = loadEnv()) {
       version: '1.0.0',
       timestamp: Date.now(),
       geminiConfigured: env.geminiConfigured,
+      // Provider and model id only; never a key.
+      ...activeProvider(),
     });
   });
 
@@ -187,8 +213,10 @@ if (isMainModule()) {
   const app = createApp(env);
   app.listen(env.PORT, () => {
     console.log(`[KaamPe Server] Running on http://localhost:${env.PORT} (${env.NODE_ENV})`);
-    if (!env.geminiConfigured) {
-      console.warn('[KaamPe Server] GEMINI_API_KEY is not set; AI features will use fallbacks or fail gracefully.');
+    if (!env.geminiConfigured && !env.OPENAI_API_KEY) {
+      console.warn('[KaamPe Server] No GEMINI_API_KEY or OPENAI_API_KEY; AI features will use fallbacks or fail gracefully.');
+    } else if (!env.geminiConfigured) {
+      console.warn('[KaamPe Server] GEMINI_API_KEY is not set; answering with OpenAI (no search grounding or voice).');
     }
   });
 }

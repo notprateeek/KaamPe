@@ -7,21 +7,26 @@ import { Dialog } from '../../components/ui/Dialog';
 import { WeeklyBarChart } from '../../components/charts/WeeklyBarChart';
 import { todayLocalISODate } from '../../lib/date';
 import { PlatformBreakdown } from './PlatformBreakdown';
+import { MoneyInsights } from './MoneyInsights';
 import { AmountChips, SourceChips } from './QuickChips';
 import { useToast } from '../../components/ui/Toast';
+import { ShareSheet } from '../../components/share/ShareSheet';
 import { WORKER_PLATFORMS } from '../../constants/workerIcons';
 import {
   MoneyEntry,
   MoneySummary,
   computePlatformStats,
-  deleteMoneyEntry,
+  parseWorkFields,
+  MoneySaveError,
   fetchMoneyEntries,
   fetchMoneySummary,
   fill,
   formatPaise,
   formatPaiseCompact,
   parseRupeesToPaise,
+  saveMoneyEntry,
 } from './moneyUtils';
+import { useSavedEntryToast } from './useSavedEntryToast';
 import { Trash2, ArrowUpRight, ArrowDownLeft, Calendar, BarChart3, Share2 } from 'lucide-react';
 
 type ExpenseCategory = 'Fuel' | 'Food' | 'Maintenance' | 'Mobile/data' | 'Equipment' | 'Other';
@@ -39,8 +44,9 @@ async function readServerError(res: Response, fallback: string): Promise<string>
 }
 
 export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdded }) => {
-  const { t, profile, buzz } = useApp();
+  const { t, profile, buzz, sessionVersion } = useApp();
   const { showToast } = useToast();
+  const notifySaved = useSavedEntryToast();
   const [data, setData] = useState<MoneySummary | null>(null);
   const [entries, setEntries] = useState<MoneyEntry[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,6 +55,9 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
   const [openForm, setOpenForm] = useState<'earning' | 'expense' | null>(null);
   const [amount, setAmount] = useState('');
   const [source, setSource] = useState('');
+  // Optional work details for an earning (per-trip / per-hour comparison)
+  const [trips, setTrips] = useState('');
+  const [hours, setHours] = useState('');
   const [category, setCategory] = useState<ExpenseCategory>('Fuel');
   const [date, setDate] = useState(() => todayLocalISODate());
   const [note, setNote] = useState('');
@@ -56,6 +65,7 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [pendingDelete, setPendingDelete] = useState<MoneyEntry | null>(null);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -70,14 +80,17 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
     setIsLoading(false);
   }, []);
 
+  // sessionVersion: refetch when the session changes (e.g. demo login).
   useEffect(() => {
     fetchAll();
-  }, [fetchAll]);
+  }, [fetchAll, sessionVersion]);
 
   const openEntryForm = (kind: 'earning' | 'expense') => {
     setFormError('');
     setAmount('');
     setSource('');
+    setTrips('');
+    setHours('');
     setNote('');
     setDate(todayLocalISODate());
     setOpenForm(kind);
@@ -94,54 +107,35 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
       return;
     }
 
+    const work = openForm === 'earning' ? parseWorkFields(trips, hours) : {};
+    if (work === null) {
+      setFormError(t.work.invalid);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // API accepts rupees and converts to integer paise server-side; paise/100 has at most 2 decimals
-      const rupees = paise / 100;
-      const body =
-        openForm === 'earning'
-          ? { amount: rupees, source: source.trim() || undefined, date, note: note.trim() || undefined }
-          : { amount: rupees, category, date, note: note.trim() || undefined };
-
-      const res = await fetch(`/api/money/${openForm}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        setFormError(
-          await readServerError(res, res.status === 400 ? t.money.errorAmountInvalid : t.money.errorSaveFailed)
-        );
-        return;
-      }
-
-      const saved = await res.json().catch(() => null);
-      const entryId: string | undefined = saved?.entry?.id;
       const kind = openForm;
+      const fields =
+        kind === 'earning'
+          ? { source: source.trim() || undefined, date, note: note.trim() || undefined, ...work }
+          : { category, date, note: note.trim() || undefined };
+      const entryId = await saveMoneyEntry(kind, paise, fields);
+
       setOpenForm(null);
       buzz();
       await fetchAll();
       onEntryAdded?.();
-      showToast(
-        fill(kind === 'earning' ? t.money.savedEarningToast : t.money.savedExpenseToast, { amount: formatPaise(paise) }),
-        entryId
-          ? {
-              label: t.common.undo,
-              onAction: () =>
-                deleteMoneyEntry(entryId)
-                  .then(async () => {
-                    await fetchAll();
-                    onEntryAdded?.();
-                    showToast(t.money.undoneToast);
-                  })
-                  .catch(() => showToast(t.money.errorDelete)),
-            }
-          : undefined
+      notifySaved(kind, paise, entryId, async () => {
+        await fetchAll();
+        onEntryAdded?.();
+      });
+    } catch (err) {
+      setFormError(
+        err instanceof MoneySaveError
+          ? err.serverMessage ?? (err.status === 400 ? t.money.errorAmountInvalid : t.money.errorSaveFailed)
+          : t.money.errorSaveFailed
       );
-    } catch {
-      setFormError(t.money.errorSaveFailed);
     } finally {
       setIsSubmitting(false);
     }
@@ -188,27 +182,11 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
     [entries, weekDays]
   );
 
-  const shareWeek = async () => {
-    const text = fill(t.money.shareWeekText, {
-      earned: formatPaise(data?.weekly.totalEarningsPaise ?? 0),
-      spent: formatPaise(data?.weekly.totalExpensesPaise ?? 0),
-      net: formatPaise(data?.weekly.netPaise ?? 0),
-    });
-    if (typeof navigator.share === 'function') {
-      try {
-        await navigator.share({ text });
-        return;
-      } catch {
-        /* cancelled: fall through to copy */
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast(t.money.shareCopied);
-    } catch {
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
-    }
-  };
+  const shareText = fill(t.money.shareWeekText, {
+    earned: formatPaise(data?.weekly.totalEarningsPaise ?? 0),
+    spent: formatPaise(data?.weekly.totalExpensesPaise ?? 0),
+    net: formatPaise(data?.weekly.netPaise ?? 0),
+  });
 
   const entryLabel = (entry: MoneyEntry) =>
     entry.type === 'earning'
@@ -289,7 +267,7 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
 
       <div className="grid gap-5 md:gap-6 lg:grid-cols-5 lg:items-start">
         {/* HERO: Net Today */}
-        <Card className="bg-surface-1 border-[1.5px] border-ink p-5 md:p-7 lg:col-span-3 shadow-[0_12px_32px_rgba(23,33,77,0.10)]">
+        <Card className="bg-surface-1 border-[1.5px] border-ink p-5 md:p-7 lg:col-span-3 shadow-lift">
           <span className="text-sm font-semibold text-ink-muted">{t.money.netToday}</span>
           <div
             className={`text-[3.5rem] md:text-7xl leading-none font-extrabold font-wide tabular-nums my-2 ${todayNet >= 0 ? 'text-ink' : 'text-semantic-error'}`}
@@ -326,16 +304,18 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
               <Calendar className="w-4 h-4 text-accent" aria-hidden="true" />
               <span>{t.money.thisWeek}</span>
             </h2>
+            {weekHasEntries && (
             <button
               type="button"
-              onClick={shareWeek}
-              disabled={!weekHasEntries}
+              onClick={() => setIsShareOpen(true)}
+              aria-haspopup="dialog"
               aria-label={t.money.shareWeek}
               title={t.money.shareWeek}
-              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-full text-accent hover:bg-accent-light disabled:opacity-40 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-full text-accent hover:bg-accent-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <Share2 className="w-5 h-5" aria-hidden="true" />
             </button>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs bg-surface-2 p-3 rounded-subtle">
@@ -386,6 +366,9 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
 
       {/* PER-PLATFORM BREAKDOWN */}
       {platformStats && platformStats.length > 0 && <PlatformBreakdown stats={platformStats} />}
+
+      {/* AI INSIGHTS (numbers computed on the server; the model only explains) */}
+      <MoneyInsights hasEntries={!!entries?.length} />
 
       {/* RECENT ACTIVITY */}
       <section>
@@ -457,6 +440,31 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
             onChange={(e) => setSource(e.target.value)}
           />
           <SourceChips options={WORKER_PLATFORMS[profile.workerType]} value={source} onPick={setSource} label={t.money.quickSources} />
+          <fieldset>
+            <legend className="text-sm font-semibold text-ink mb-1.5">
+              {t.work.title} <span className="font-normal text-ink-muted">({t.work.optional})</span>
+            </legend>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                id="money-trips"
+                label={t.work.tripsLabel}
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={4}
+                value={trips}
+                onChange={(e) => setTrips(e.target.value.replace(/[^\d]/g, ''))}
+              />
+              <Input
+                id="money-hours"
+                label={t.work.hoursLabel}
+                inputMode="decimal"
+                autoComplete="off"
+                maxLength={5}
+                value={hours}
+                onChange={(e) => setHours(e.target.value.replace(/[^\d.]/g, ''))}
+              />
+            </div>
+          </fieldset>
           {sharedFields}
           {formButtons}
         </form>
@@ -491,6 +499,8 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
           {formButtons}
         </form>
       </Dialog>
+
+      <ShareSheet open={isShareOpen} onClose={() => setIsShareOpen(false)} title={t.money.shareWeek} text={shareText} />
 
       {/* DELETE CONFIRMATION */}
       <Dialog open={pendingDelete !== null} onClose={() => setPendingDelete(null)} title={t.money.deleteConfirm}>

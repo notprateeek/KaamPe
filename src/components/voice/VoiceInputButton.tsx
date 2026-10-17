@@ -126,11 +126,6 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
       recorder.toggle();
     }
   };
-  const clearError = () => {
-    recorder.clearError();
-    clearSpeechError();
-  };
-
   const busy = state !== 'idle';
   useEffect(() => {
     onListeningChange?.(busy);
@@ -184,7 +179,7 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
         aria-busy={state === 'transcribing' || undefined}
         title={recording ? t.voice.stop : t.voice.start}
         className={`relative inline-flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ${
-          recording ? 'bg-ink border-ink text-white' : 'bg-surface-1 border-hairline text-ink hover:bg-surface-2'
+          recording ? 'bg-ink border-ink text-inverse' : 'bg-surface-1 border-hairline text-ink hover:bg-surface-2'
         }`}
       >
         {recording && (

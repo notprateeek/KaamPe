@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dataDir = path.resolve(__dirname, '../../data');
+// Vercel functions can only write to /tmp (ephemeral per instance)
+const dataDir = process.env.VERCEL ? '/tmp/kaampe-data' : path.resolve(__dirname, '../../data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
@@ -94,6 +95,33 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_documents_session
   ON documents(session_id, created_at);
+
+  -- Optional sign-in. An account owns exactly one session; all data stays
+  -- keyed by session_id, so signing in just points the cookie at that session.
+  CREATE TABLE IF NOT EXISTS accounts (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    display_name TEXT,
+    password_hash TEXT NOT NULL,
+    session_id TEXT NOT NULL UNIQUE,
+    created_at INTEGER NOT NULL,
+    last_login_at INTEGER NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+  );
 `);
+
+/**
+ * Additive columns for databases created before they existed. CREATE TABLE IF NOT
+ * EXISTS never changes an existing table, so each column is added once, guarded
+ * by table_info. Only nullable columns are added this way (safe, no backfill).
+ */
+function addColumnIfMissing(table: string, column: string, definition: string) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!columns.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
+// Optional work details on earnings, for per-trip and per-hour comparisons.
+addColumnIfMissing('money_entries', 'trips', 'INTEGER CHECK(trips IS NULL OR (trips >= 0 AND trips <= 1000))');
+addColumnIfMissing('money_entries', 'work_minutes', 'INTEGER CHECK(work_minutes IS NULL OR (work_minutes > 0 AND work_minutes <= 1440))');
 
 console.log('[DB] SQLite database initialized at:', dbPath);

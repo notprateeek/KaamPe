@@ -5,15 +5,18 @@ import { BottomNav } from './components/layout/BottomNav';
 import { Sidebar } from './components/layout/Sidebar';
 import { OnboardingModal } from './features/onboarding/OnboardingModal';
 import { HomeView, ChatMessage } from './features/home/HomeView';
-import type { HelpTab } from './features/help/HelpView';
+import { clearChatHistory, fetchChatHistory } from './features/home/chatHistory';
+import { LoginScreen } from './features/auth/LoginScreen';
 import { Button } from './components/ui/Button';
 import { Input } from './components/ui/Input';
 import { Dialog } from './components/ui/Dialog';
 import { SosButton } from './components/sos/SosButton';
 import { ToastProvider, useToast } from './components/ui/Toast';
 import { OfflineBanner } from './components/layout/OfflineBanner';
+import { ScreenReaderProvider } from './components/speech/ScreenReader';
 import { AmountChips, SourceChips } from './features/money/QuickChips';
-import { deleteMoneyEntry, fill, formatPaise, parseRupeesToPaise } from './features/money/moneyUtils';
+import { parseRupeesToPaise, parseWorkFields, saveMoneyEntry } from './features/money/moneyUtils';
+import { useSavedEntryToast } from './features/money/useSavedEntryToast';
 import { WORKER_PLATFORMS } from './constants/workerIcons';
 import { todayLocalISODate } from './lib/date';
 
@@ -37,23 +40,64 @@ const ViewFallback: React.FC<{ label: string }> = ({ label }) => (
 );
 
 const AppContent: React.FC = () => {
-  const { profile, activeTab, setActiveTab, t, buzz } = useApp();
+  const {
+    profile,
+    activeTab,
+    setActiveTab,
+    t,
+    buzz,
+    sessionVersion,
+    needsLogin,
+    isLoadingSession,
+    helpTab,
+    setHelpTab,
+    openHelp,
+    helpNavKey,
+  } = useApp();
   const { showToast } = useToast();
+  const notifySaved = useSavedEntryToast();
   // Bumped after any money change made outside a view, so Home's totals refetch.
   const [moneyVersion, setMoneyVersion] = useState(0);
   const bumpMoney = () => setMoneyVersion((v) => v + 1);
   const [initialPrompt, setInitialPrompt] = useState<string | undefined>();
   // Lives here so the conversation survives switching tabs
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [helpTab, setHelpTab] = useState<HelpTab>('doc');
 
   // Quick Add Earning Modal triggerable from anywhere
   const [showGlobalEarningModal, setShowGlobalEarningModal] = useState(false);
   const [amount, setAmount] = useState('');
   const [source, setSource] = useState('');
+  const [trips, setTrips] = useState('');
+  const [hours, setHours] = useState('');
   const [date, setDate] = useState(todayLocalISODate);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // A different account (demo login / logout) starts with an empty conversation.
+  useEffect(() => {
+    if (sessionVersion > 0) {
+      setChatMessages([]);
+      bumpMoney();
+    }
+  }, [sessionVersion]);
+
+  // Bring back this session's saved chat after a reload or account switch.
+  // Never replaces messages the worker has already sent in the meantime.
+  useEffect(() => {
+    let cancelled = false;
+    fetchChatHistory(profile.language)
+      .then((saved) => {
+        if (!cancelled && saved.length) setChatMessages((prev) => (prev.length ? prev : saved));
+      })
+      .catch(() => {
+        /* offline: start with an empty chat */
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Language only labels the read-aloud voice; reloading on a language change is not needed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionVersion]);
 
   // Warm the lazy chunks once the home screen is idle so tab switches are instant.
   useEffect(() => {
@@ -69,6 +113,8 @@ const AppContent: React.FC = () => {
     setError('');
     setAmount('');
     setSource('');
+    setTrips('');
+    setHours('');
     setDate(todayLocalISODate());
     setShowGlobalEarningModal(true);
   };
@@ -87,49 +133,33 @@ const AppContent: React.FC = () => {
       return;
     }
 
+    const work = parseWorkFields(trips, hours);
+    if (work === null) {
+      setError(t.work.invalid);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/money/earning', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          amount: paise / 100,
-          source: source.trim() || undefined,
-          date,
-        }),
-      });
-
-      if (!res.ok) throw new Error('save_failed');
-      const saved = await res.json().catch(() => null);
-      const entryId: string | undefined = saved?.entry?.id;
+      const entryId = await saveMoneyEntry('earning', paise, { source: source.trim() || undefined, date, ...work });
 
       setShowGlobalEarningModal(false);
       setAmount('');
       setSource('');
       buzz();
       bumpMoney();
-      showToast(
-        fill(t.money.savedEarningToast, { amount: formatPaise(paise) }),
-        entryId
-          ? {
-              label: t.common.undo,
-              onAction: () =>
-                deleteMoneyEntry(entryId)
-                  .then(() => {
-                    bumpMoney();
-                    showToast(t.money.undoneToast);
-                  })
-                  .catch(() => showToast(t.money.errorDelete)),
-            }
-          : undefined
-      );
+      notifySaved('earning', paise, entryId, bumpMoney);
     } catch {
       setError(t.forms.saveFailed);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // First visit: one-tap demo, sign in / sign up, or continue as a guest.
+  if (needsLogin) return <LoginScreen />;
+  // Unknown visitor while the session loads: a blank canvas instead of a flash of the app.
+  if (isLoadingSession && !profile.isOnboarded) return <div className="min-h-screen bg-canvas" aria-busy="true" />;
 
   return (
     <div className="min-h-screen bg-canvas text-ink">
@@ -156,10 +186,7 @@ const AppContent: React.FC = () => {
               setMessages={setChatMessages}
               onOpenAddEarning={openEarningModal}
               onNavigateToTab={setActiveTab}
-              onOpenHelp={(tab) => {
-                setHelpTab(tab);
-                setActiveTab('help');
-              }}
+              onOpenHelp={openHelp}
               initialPrompt={initialPrompt}
               moneyVersion={moneyVersion}
             />
@@ -171,15 +198,21 @@ const AppContent: React.FC = () => {
               {activeTab === 'me' && (
                 <MeView
                   hasChat={chatMessages.length > 0}
-                  onClearChat={() => {
-                    setChatMessages([]);
-                    showToast(t.me.chatCleared);
+                  onClearChat={async () => {
+                    if (await clearChatHistory()) {
+                      setChatMessages([]);
+                      showToast(t.me.chatCleared);
+                    } else {
+                      showToast(t.common.error);
+                    }
                   }}
                 />
               )}
               {activeTab === 'help' && (
                 <HelpView
+                  key={helpNavKey}
                   initialTab={helpTab}
+                  onTabChange={setHelpTab}
                   onNavigateToChatWithPrompt={(p) => {
                     setInitialPrompt(p);
                     setActiveTab('home');
@@ -229,6 +262,32 @@ const AppContent: React.FC = () => {
               label={t.money.quickSources}
             />
 
+            <fieldset>
+              <legend className="text-sm font-semibold text-ink mb-1.5">
+                {t.work.title} <span className="font-normal text-ink-muted">({t.work.optional})</span>
+              </legend>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  id="quick-earning-trips"
+                  label={t.work.tripsLabel}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={4}
+                  value={trips}
+                  onChange={(e) => setTrips(e.target.value.replace(/[^\d]/g, ''))}
+                />
+                <Input
+                  id="quick-earning-hours"
+                  label={t.work.hoursLabel}
+                  inputMode="decimal"
+                  autoComplete="off"
+                  maxLength={5}
+                  value={hours}
+                  onChange={(e) => setHours(e.target.value.replace(/[^\d.]/g, ''))}
+                />
+              </div>
+            </fieldset>
+
             <Input
               id="quick-earning-date"
               label={t.money.dateLabel}
@@ -265,7 +324,9 @@ export default function App() {
   return (
     <AppProvider>
       <ToastProvider>
-        <AppContent />
+        <ScreenReaderProvider>
+          <AppContent />
+        </ScreenReaderProvider>
       </ToastProvider>
     </AppProvider>
   );

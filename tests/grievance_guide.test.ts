@@ -147,6 +147,31 @@ describe('Guided grievance: drafting', () => {
   });
 });
 
+describe('Guided grievance: English copy', () => {
+  it('adds a fact-only English copy to Hindi and Punjabi drafts', async () => {
+    generateContent.mockRejectedValue(new Error('down'));
+    for (const language of ['hi', 'pa'] as const) {
+      const draft = await generateGrievanceDraft({ description: 'Payment nahi mili.', facts: { amount: 3200, days: 8 }, language });
+      expect(draft.englishDraft).toMatch(/^Dear Support Team/);
+      expect(draft.englishDraft).toContain('₹3200');
+      expect(draft.englishDraft).toContain('8 days');
+    }
+  });
+
+  it('keeps the English copy even when the model writes the main draft', async () => {
+    generateContent.mockResolvedValue({ text: JSON.stringify({ draftMessage: 'Namaste, meri ₹3200 ki payment 8 din se pending hai.' }) });
+    const draft = await generateGrievanceDraft({ description: 'Payment nahi mili.', facts: { amount: 3200, days: 8 }, language: 'hi' });
+    expect(draft.usedFallback).toBe(false);
+    expect(draft.englishDraft).toContain('₹3200');
+  });
+
+  it('has no separate copy when the draft is already in English', async () => {
+    generateContent.mockRejectedValue(new Error('down'));
+    const draft = await generateGrievanceDraft({ description: 'Payment not received.', facts: { amount: 3200 }, language: 'en' });
+    expect(draft.englishDraft).toBeUndefined();
+  });
+});
+
 describe('POST /api/ai/grievance', () => {
   it('runs the ₹3200 / 8 din conversation and lets the worker correct facts before drafting', async () => {
     const first = await post({ action: 'collect', description: 'Payment nahi mili.' });
@@ -180,6 +205,36 @@ describe('POST /api/ai/grievance', () => {
   it('masks sensitive numbers before they reach the model', async () => {
     generateContent.mockRejectedValue(new Error('down'));
     await post({ action: 'draft', description: 'Payment nahi mili, account 123456789012', facts: { amount: 3200, days: 8 } });
+    expect(JSON.stringify(generateContent.mock.calls)).not.toContain('123456789012');
+  });
+
+  it('accepts 2-decimal amounts that are not exact in floating point (4.35, 1.15, 0.29)', async () => {
+    generateContent.mockRejectedValue(new Error('down'));
+    for (const amount of [4.35, 1.15, 0.29]) {
+      const { res } = await post({ action: 'draft', description: 'Payment nahi mili.', facts: { amount } });
+      expect(res.status).not.toHaveBeenCalledWith(400);
+    }
+    const { res } = await post({ action: 'draft', description: 'Payment nahi mili.', facts: { amount: 4.355 } });
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('takes evidence as a separate context field, so a full-length description still drafts', async () => {
+    generateContent.mockRejectedValue(new Error('down'));
+    const description = 'Payment nahi mili. '.repeat(200).slice(0, 2000);
+    const context = 'Kamai ka saboot: Swiggy ₹3200 (8 din). '.repeat(20).slice(0, 1000);
+    const ok = await post({ action: 'draft', description, context, facts: { amount: 3200, days: 8 } });
+    expect(ok.res.status).not.toHaveBeenCalledWith(400);
+    expect(ok.body.draftMessage).toBeTruthy();
+
+    const tooLong = await post({ action: 'draft', description: 'x'.repeat(2001), facts: { amount: 1 } });
+    expect(tooLong.res.status).toHaveBeenCalledWith(400);
+    const contextTooLong = await post({ action: 'draft', description: 'x', context: 'y'.repeat(1001), facts: { amount: 1 } });
+    expect(contextTooLong.res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('masks sensitive numbers in the context too', async () => {
+    generateContent.mockRejectedValue(new Error('down'));
+    await post({ action: 'draft', description: 'Payment nahi mili.', context: 'Account 123456789012', facts: { amount: 3200, days: 8 } });
     expect(JSON.stringify(generateContent.mock.calls)).not.toContain('123456789012');
   });
 });

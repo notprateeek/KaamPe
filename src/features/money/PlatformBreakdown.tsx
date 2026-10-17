@@ -10,6 +10,9 @@ export const PlatformBreakdown: React.FC<{ stats: PlatformStat[] }> = ({ stats }
   const named = stats.filter((s) => s.label);
   const best =
     named.length >= 2 ? named.reduce((a, b) => (b.netPerDayPaise > a.netPerDayPaise ? b : a)) : null;
+  // With hours recorded for 2+ apps, also point out which pays best per hour.
+  const timed = named.filter((s) => s.earnPerHourPaise !== null);
+  const bestHour = timed.length >= 2 ? timed.reduce((a, b) => (b.earnPerHourPaise! > a.earnPerHourPaise! ? b : a)) : null;
 
   return (
     <Card className="bg-surface-1 border border-hairline p-4 md:p-5">
@@ -48,6 +51,12 @@ export const PlatformBreakdown: React.FC<{ stats: PlatformStat[] }> = ({ stats }
                   <span className={`font-semibold ${s.netPerDayPaise < 0 ? 'text-semantic-error' : 'text-ink'}`}>
                     {fill(t.money.platformNetPerDay, { amount: formatPaise(s.netPerDayPaise) })}
                   </span>
+                  {s.earnPerTripPaise !== null && <span>{fill(t.work.perTrip, { amount: formatPaise(s.earnPerTripPaise) })}</span>}
+                  {s.earnPerHourPaise !== null && (
+                    <span className={bestHour?.key === s.key ? 'font-semibold text-accent' : undefined}>
+                      {fill(t.work.perHour, { amount: formatPaise(s.earnPerHourPaise) })}
+                    </span>
+                  )}
                 </p>
               </li>
             ))}

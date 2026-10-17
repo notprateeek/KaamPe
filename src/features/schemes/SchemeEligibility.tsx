@@ -4,6 +4,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { INDIAN_STATES, WORKER_TYPES } from '../../constants/profile';
+import { safeGetItem, safeSetItem } from '../../lib/storage';
 import { ArrowRight, CheckCircle2, ExternalLink, Info, Landmark, ListChecks } from 'lucide-react';
 
 type TriState = 'yes' | 'no' | 'unknown';
@@ -35,6 +36,37 @@ const safeHttpUrl = (url: unknown): string | null => {
     return null;
   }
 };
+
+// Answers stay on this device so the worker doesn't retype them next time.
+const ANSWERS_KEY = 'kaampe_scheme_answers';
+const TRI: TriState[] = ['yes', 'no', 'unknown'];
+
+interface SavedAnswers {
+  age: string;
+  income: string;
+  hasEpfo: TriState;
+  hasEsic: TriState;
+  isIncomeTaxPayer: TriState;
+}
+
+export function loadSavedAnswers(): SavedAnswers {
+  const empty: SavedAnswers = { age: '', income: '', hasEpfo: 'unknown', hasEsic: 'unknown', isIncomeTaxPayer: 'unknown' };
+  try {
+    const raw = JSON.parse(safeGetItem(ANSWERS_KEY) ?? 'null') as Partial<SavedAnswers> | null;
+    if (!raw || typeof raw !== 'object') return empty;
+    const text = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '');
+    const tri = (v: unknown): TriState => (TRI.includes(v as TriState) ? (v as TriState) : 'unknown');
+    return {
+      age: text(raw.age, 3),
+      income: text(raw.income, 12),
+      hasEpfo: tri(raw.hasEpfo),
+      hasEsic: tri(raw.hasEsic),
+      isIncomeTaxPayer: tri(raw.isIncomeTaxPayer),
+    };
+  } catch {
+    return empty;
+  }
+}
 
 const asStringArray = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 
@@ -72,7 +104,7 @@ const TriStateGroup: React.FC<{
               onChange={() => onChange(o.v)}
               className="peer sr-only"
             />
-            <span className="flex min-h-[44px] items-center justify-center rounded-xl border border-hairline bg-surface-1 px-2 text-center text-sm font-medium text-ink transition-colors hover:bg-surface-2 peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-ink peer-focus-visible:ring-offset-2">
+            <span className="flex min-h-[44px] items-center justify-center rounded-xl border border-hairline bg-surface-1 px-2 text-center text-sm font-medium text-ink transition-colors hover:bg-surface-2 peer-checked:border-ink peer-checked:bg-ink peer-checked:text-inverse peer-focus-visible:ring-2 peer-focus-visible:ring-ink peer-focus-visible:ring-offset-2">
               {o.label}
             </span>
           </label>
@@ -84,13 +116,14 @@ const TriStateGroup: React.FC<{
 
 export const SchemeEligibility: React.FC<{ onAskAboutScheme?: (prompt: string) => void }> = ({ onAskAboutScheme }) => {
   const { t, profile } = useApp();
-  const [age, setAge] = useState('');
-  const [income, setIncome] = useState('');
+  const [saved] = useState(loadSavedAnswers);
+  const [age, setAge] = useState(saved.age);
+  const [income, setIncome] = useState(saved.income);
   const [workerType, setWorkerType] = useState<UserProfile['workerType']>(profile.workerType);
   const [state, setState] = useState(profile.state);
-  const [hasEpfo, setHasEpfo] = useState<TriState>('unknown');
-  const [hasEsic, setHasEsic] = useState<TriState>('unknown');
-  const [isIncomeTaxPayer, setIsIncomeTaxPayer] = useState<TriState>('unknown');
+  const [hasEpfo, setHasEpfo] = useState<TriState>(saved.hasEpfo);
+  const [hasEsic, setHasEsic] = useState<TriState>(saved.hasEsic);
+  const [isIncomeTaxPayer, setIsIncomeTaxPayer] = useState<TriState>(saved.isIncomeTaxPayer);
   const [touchedProfile, setTouchedProfile] = useState(false);
 
   const [ageError, setAgeError] = useState('');
@@ -138,6 +171,7 @@ export const SchemeEligibility: React.FC<{ onAskAboutScheme?: (prompt: string) =
 
     if (!valid) return;
 
+    safeSetItem(ANSWERS_KEY, JSON.stringify({ age: age.trim(), income: incomeClean, hasEpfo, hasEsic, isIncomeTaxPayer }));
     setIsLoading(true);
     try {
       const res = await fetch('/api/ai/schemes/eligibility', {

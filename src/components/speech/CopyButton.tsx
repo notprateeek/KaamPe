@@ -3,7 +3,8 @@ import { Copy, Check } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { actionButtonClass } from './ReadAloudButton';
 
-async function copyText(text: string): Promise<boolean> {
+/** Clipboard API with a legacy execCommand fallback; resolves to whether it worked. */
+export async function copyText(text: string): Promise<boolean> {
   try {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);

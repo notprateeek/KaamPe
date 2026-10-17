@@ -10,6 +10,7 @@ import {
   detectIssue,
   generateGrievanceDraft,
 } from '../services/grievance/guide.js';
+import { MAX_GRIEVANCE_CONTEXT_CHARS, MAX_GRIEVANCE_DESCRIPTION_CHARS } from '../../shared/grievance.js';
 
 /**
  * POST /api/ai/grievance - guided complaint drafting.
@@ -26,7 +27,10 @@ const FieldList = z.array(z.enum(GRIEVANCE_FIELDS)).max(GRIEVANCE_FIELDS.length)
 const GrievanceRequestSchema = z.object({
   action: z.enum(['collect', 'draft']),
   language: z.enum(['hi', 'en', 'pa']).optional(),
-  description: z.string().trim().min(1).max(2000),
+  description: z.string().trim().min(1).max(MAX_GRIEVANCE_DESCRIPTION_CHARS),
+  // Supporting evidence for the draft only (e.g. the worker's earnings summary);
+  // kept separate so it never eats into the worker's own description budget.
+  context: z.string().trim().max(MAX_GRIEVANCE_CONTEXT_CHARS).optional(),
   facts: GrievanceFactsSchema.optional(),
   unknown: FieldList,
   answer: z.string().trim().max(500).optional(),
@@ -62,8 +66,9 @@ router.post('/grievance', async (req, res) => {
     );
   }
 
+  const context = body.context ? redactSensitive(body.context) : '';
   const draft = await generateGrievanceDraft({
-    description,
+    description: context ? `${description}\n\n${context}` : description,
     facts,
     unknown: body.unknown,
     language,

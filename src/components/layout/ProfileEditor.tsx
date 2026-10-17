@@ -39,7 +39,7 @@ export const ProfileEditor: React.FC<{ idPrefix: string; onDone: () => void }> =
                 onClick={() => setWorker(type)}
                 className={`min-h-[44px] px-2 rounded-subtle text-sm flex items-center justify-center gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink ${
                   selected
-                    ? 'bg-ink text-white font-bold'
+                    ? 'bg-ink text-inverse font-bold'
                     : 'bg-surface-1 text-ink font-medium border border-hairline hover:border-ink'
                 }`}
               >

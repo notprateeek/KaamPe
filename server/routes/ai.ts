@@ -9,11 +9,21 @@ import {
   isTrustedGovernmentDomain,
   parseModelJson,
 } from '../services/ai/gemini.js';
-import { generateWithRetry, getModelName, thinkingConfigFor, TIMEOUTS } from '../services/ai/client.js';
+import {
+  generateWithRetry,
+  getModelName,
+  partialJsonString,
+  streamWithRetry,
+  thinkingConfigFor,
+  TIMEOUTS,
+  type GenerateOptions,
+} from '../services/ai/client.js';
 import {
   buildGroundedPrompt,
   buildGuidancePrompt,
-  wrapUserInput,
+  buildInsightsPrompt,
+  wrapWithContext,
+  type ContextTurn,
 } from '../services/ai/prompts.js';
 import {
   redactSensitive,
@@ -30,19 +40,31 @@ import {
   type LocalizedSchemeMatch,
 } from '../services/schemes/match.js';
 import { helplineReference } from '../../shared/helplines.js';
+import {
+  computeInsightFacts,
+  factsForPrompt,
+  fallbackInsights,
+  InsightOutputSchema,
+  isInsightFaithful,
+  INSIGHT_WINDOW_DAYS,
+} from '../services/money/insights.js';
 import { db } from '../db/index.js';
 import { sendApiError } from '../middleware/errorHandler.js';
 import { startGrievanceFromChat } from '../services/grievance/guide.js';
+import { numberTokens } from '../services/text/numbers.js';
 import grievanceRouter from './grievance.js';
 import voiceRouter from './voice.js';
 import {
   rupeesToPaise,
   paiseToRupees,
   parseRupeeAmount,
+  parseTrips,
+  parseWorkHours,
   validateEntryDate,
   MoneyValidationError,
   calculateDailySummary,
   getTodayDateString,
+  addDaysToDateString,
   MoneyEntryRecord,
 } from '../services/money/calculator.js';
 
@@ -118,9 +140,26 @@ const ChatRequestSchema = z.object({
   message: z.string().trim().min(1).max(2000),
   conversationId: z.string().max(64).optional(),
   language: z.enum(['hi', 'en', 'pa']).optional(),
+  /** Stream the answer as NDJSON events ({event:'partial'|'done'|'error'}). */
+  stream: z.boolean().optional(),
+  /** Worker opted in to saving money entries from chat without a confirmation tap. */
+  autoSave: z.boolean().optional(),
 });
 
 const AmountInputSchema = z.union([z.number(), z.string().max(20)]);
+const CountInputSchema = z.union([z.number(), z.string().max(8)]).optional().nullable();
+
+/** Trips/hours from the classifier are kept only if that number really appears in the worker's message. */
+function onlyStatedWorkDetails<T extends { trips?: number; hours?: number }>(earning: T | undefined, message: string): T | undefined {
+  if (!earning) return earning;
+  const said = new Set(numberTokens(message));
+  const { trips, hours, ...rest } = earning;
+  return {
+    ...rest,
+    ...(typeof trips === 'number' && said.has(String(trips)) ? { trips } : {}),
+    ...(typeof hours === 'number' && said.has(numberTokens(String(hours))[0]) ? { hours } : {}),
+  } as T;
+}
 
 const ConfirmMoneySchema = z.object({
   earning: z
@@ -128,6 +167,8 @@ const ConfirmMoneySchema = z.object({
       amount: AmountInputSchema,
       source: z.string().optional().nullable(),
       date: z.string().optional(),
+      trips: CountInputSchema,
+      hours: CountInputSchema,
     })
     .optional()
     .nullable(),
@@ -218,22 +259,101 @@ router.post('/chat', async (req, res) => {
   const message = redactSensitive(parsed.data.message);
   const redacted = message !== parsed.data.message;
 
-  try {
-    const body: Record<string, unknown> = await routeChat({ message, sessionId, language, workerType, state });
+  const history = loadContextTurns(sessionId);
+  const finish = (body: Record<string, unknown>) => {
     if (redacted) body.privacyNotice = MESSAGES.privacyNotice[language];
-    const conversationId = sessionProfile?.id
-      ? persistTurn(sessionId, parsed.data.conversationId, message, body)
-      : undefined;
-    return res.json(conversationId ? { ...body, conversationId } : body);
-  } catch (err: any) {
-    console.error('[AI Chat Error]', err?.message || err);
-    return res.status(500).json({
-      error: MESSAGES.chatError[language],
-      code: 'internal_error',
-      fallbackAdvice: MESSAGES.chatErrorAdvice[language],
-    });
+    const conversationId = sessionProfile?.id ? persistTurn(sessionId, parsed.data.conversationId, message, body) : undefined;
+    return conversationId ? { ...body, conversationId } : body;
+  };
+  const failure = () => ({
+    error: MESSAGES.chatError[language],
+    code: 'internal_error',
+    fallbackAdvice: MESSAGES.chatErrorAdvice[language],
+  });
+
+  if (!parsed.data.stream) {
+    try {
+      return res.json(
+        finish(await routeChat({ message, sessionId, language, workerType, state, history, autoSave: parsed.data.autoSave === true }))
+      );
+    } catch (err: any) {
+      console.error('[AI Chat Error]', err?.message || err);
+      return res.status(500).json(failure());
+    }
   }
+
+  // Streaming: newline-delimited JSON. "partial" events carry the answer text so far,
+  // "done" carries the same body as the non-streaming response. Closing the
+  // connection (the Stop button) aborts the model call and nothing is saved.
+  const stopped = new AbortController();
+  res.on('close', () => {
+    if (!res.writableFinished) stopped.abort();
+  });
+  res.status(200);
+  res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  const send = (event: Record<string, unknown>) => {
+    if (!res.writableEnded) res.write(JSON.stringify(event) + '\n');
+  };
+  try {
+    const body = await routeChat({
+      message,
+      sessionId,
+      language,
+      workerType,
+      state,
+      history,
+      autoSave: parsed.data.autoSave === true,
+      stream: { signal: stopped.signal, onPartial: (directAnswer) => send({ event: 'partial', directAnswer }) },
+    });
+    if (stopped.signal.aborted) return;
+    send({ event: 'done', body: finish(body) });
+  } catch (err: any) {
+    if (!stopped.signal.aborted) {
+      console.error('[AI Chat Stream Error]', err?.message || err);
+      send({ event: 'error', ...failure() });
+    }
+  }
+  res.end();
 });
+
+/** Streaming hooks for answers written by the model. */
+interface StreamHooks {
+  signal: AbortSignal;
+  onPartial: (directAnswerSoFar: string) => void;
+}
+
+/**
+ * Generates with or without streaming. While streaming, the "directAnswer" text is
+ * reported as it grows, but only while it passes `isSafe` (no invented phone numbers
+ * or untrusted links); the final answer is still fully validated by the caller.
+ */
+function generateMaybeStreaming(
+  params: Parameters<typeof generateWithRetry>[1],
+  options: GenerateOptions,
+  stream: StreamHooks | undefined,
+  isSafe: (partial: string) => boolean
+) {
+  const ai = getGenAI();
+  if (!stream) return generateWithRetry(ai, params, options);
+  let blocked = false;
+  let last = '';
+  return streamWithRetry(ai, params, {
+    ...options,
+    signal: stream.signal,
+    onText: (text) => {
+      const partial = partialJsonString(text, 'directAnswer');
+      if (blocked || !partial || partial === last) return;
+      if (!isSafe(partial)) {
+        blocked = true;
+        return;
+      }
+      last = partial;
+      stream.onPartial(partial);
+    },
+  });
+}
 
 async function routeChat(params: {
   message: string;
@@ -241,15 +361,36 @@ async function routeChat(params: {
   language: Lang;
   workerType: string;
   state: string;
+  history: ContextTurn[];
+  autoSave?: boolean;
+  stream?: StreamHooks;
 }): Promise<Record<string, unknown>> {
-  const { message, sessionId, language, workerType, state } = params;
+  const { message, sessionId, language, workerType, state, history, stream, autoSave } = params;
 
   // 1. Classify intent (Gemini structured output, regex fallback).
   const intentResult = await extractIntent(message, language);
 
   // 2. record_money -> confirmation card only; nothing is saved until /confirm-money.
   if (intentResult.intent === 'record_money' && (intentResult.earning || intentResult.expense)) {
-    const confirmation = prepareMoneyConfirmation(intentResult.earning, intentResult.expense);
+    const earning = onlyStatedWorkDetails(intentResult.earning, message);
+    const confirmation = prepareMoneyConfirmation(earning, intentResult.expense);
+    // Opt-in: save straight away (the reply offers Undo). Falls back to the card if anything is invalid.
+    if (autoSave) {
+      const saved = saveConfirmedMoney(sessionId, {
+        earning: earning ? { amount: earning.amount, source: earning.source, trips: earning.trips, hours: earning.hours } : null,
+        expense: intentResult.expense ? { amount: intentResult.expense.amount, category: intentResult.expense.category ?? 'Other' } : null,
+      });
+      if (saved?.length) {
+        return {
+          type: 'saved',
+          intent: 'record_money',
+          message: MESSAGES.saved[language],
+          confirmation,
+          savedEntries: saved,
+          updatedToday: todaySummaryFor(sessionId),
+        };
+      }
+    }
     return {
       type: 'confirmation',
       intent: 'record_money',
@@ -284,6 +425,8 @@ async function routeChat(params: {
       workerType,
       state,
       topic: intentResult.intent,
+      history,
+      stream,
     });
     return { type: 'answer', intent: intentResult.intent, ...groundedResult };
   }
@@ -294,70 +437,48 @@ async function routeChat(params: {
     language,
     workerType,
     isSafety: intentResult.intent === 'safety',
+    history,
+    stream,
   });
   return { type: 'answer', intent: intentResult.intent, ...generalResult };
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/ai/confirm-money - saves confirmed transactions
+// POST /api/ai/safety - safety coach for one situation (Help → Safety)
 // ---------------------------------------------------------------------------
 
-router.post('/confirm-money', (req, res) => {
-  const language = toLang(req.sessionProfile?.language);
-  const parsed = ConfirmMoneySchema.safeParse(req.body);
+const SafetyRequestSchema = z.object({
+  situation: z.string().trim().min(1).max(1000),
+  language: z.enum(['hi', 'en', 'pa']).optional(),
+});
+
+router.post('/safety', async (req, res) => {
+  const parsed = SafetyRequestSchema.safeParse(req.body);
+  const language = toLang(parsed.success ? parsed.data.language ?? req.sessionProfile?.language : req.sessionProfile?.language);
   if (!parsed.success) {
-    return sendApiError(req, res, 400, 'validation_failed', { message: MESSAGES.invalidConfirmation[language] });
+    return res.status(400).json({ error: MESSAGES.invalidMessage[language], code: 'validation_failed' });
   }
+  // Always answers: a model failure falls back to the trusted helplines and basic steps.
+  const result = await generateConversationalGuidance({
+    query: redactSensitive(parsed.data.situation),
+    language,
+    workerType: req.sessionProfile?.workerType || 'delivery',
+    isSafety: true,
+  });
+  return res.json({ type: 'answer', intent: 'safety', ...result });
+});
 
-  const sessionId = req.sessionId;
+// ---------------------------------------------------------------------------
+// POST /api/ai/money-insights - plain-language analysis of the worker's own log
+// ---------------------------------------------------------------------------
+
+router.post('/money-insights', async (req, res) => {
+  const language = toLang(req.body?.language ?? req.sessionProfile?.language);
   const today = getTodayDateString();
-  const now = Date.now();
-  const savedEntries = [];
-
-  const { earning, expense } = parsed.data;
-
-  // Validate everything before writing anything, so a bad expense never leaves a half-saved pair.
-  let earningPaise = 0;
-  let expensePaise = 0;
-  try {
-    if (earning) earningPaise = parseRupeeAmount(earning.amount);
-    if (expense) expensePaise = parseRupeeAmount(expense.amount);
-  } catch (err) {
-    if (err instanceof MoneyValidationError) {
-      return sendApiError(req, res, 400, 'validation_failed', { message: MESSAGES.invalidConfirmation[language] });
-    }
-    throw err;
-  }
-  const earningDate = earning?.date || today;
-  const expenseDate = expense?.date || today;
-  if ((earning && validateEntryDate(earningDate, today)) || (expense && validateEntryDate(expenseDate, today))) {
-    return sendApiError(req, res, 400, 'validation_failed', { message: MESSAGES.invalidConfirmation[language] });
-  }
-
-  if (earning && earningPaise > 0) {
-    const id = 'entry_' + crypto.randomUUID();
-    const source = (earning.source || 'Earning').slice(0, 60);
-    db.prepare(`
-      INSERT INTO money_entries (id, session_id, type, amount_paise, category_or_source, note, date, created_at, updated_at)
-      VALUES (?, ?, 'earning', ?, ?, ?, ?, ?, ?)
-    `).run(id, sessionId, earningPaise, source, null, earningDate, now, now);
-
-    savedEntries.push({ id, type: 'earning', amountRupees: paiseToRupees(earningPaise), source });
-  }
-
-  if (expense && expensePaise > 0) {
-    const id = 'entry_' + crypto.randomUUID();
-    const category = expense.category || 'Other';
-    db.prepare(`
-      INSERT INTO money_entries (id, session_id, type, amount_paise, category_or_source, note, date, created_at, updated_at)
-      VALUES (?, ?, 'expense', ?, ?, ?, ?, ?, ?)
-    `).run(id, sessionId, expensePaise, category, null, expenseDate, now, now);
-
-    savedEntries.push({ id, type: 'expense', amountRupees: paiseToRupees(expensePaise), category });
-  }
-
-  const rows = db.prepare('SELECT * FROM money_entries WHERE session_id = ?').all(sessionId) as any[];
-  const allEntries: MoneyEntryRecord[] = rows.map((r) => ({
+  const rows = db
+    .prepare('SELECT * FROM money_entries WHERE session_id = ? AND date >= ? AND date <= ?')
+    .all(req.sessionId, addDaysToDateString(today, -(INSIGHT_WINDOW_DAYS - 1)), today) as any[];
+  const entries: MoneyEntryRecord[] = rows.map((r) => ({
     id: r.id,
     sessionId: r.session_id,
     type: r.type,
@@ -368,13 +489,131 @@ router.post('/confirm-money', (req, res) => {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   }));
+  const facts = computeInsightFacts(entries, today);
+  if (facts.earnedRupees === 0 && facts.spentRupees === 0) {
+    return res.json({ empty: true, facts });
+  }
 
-  const updatedToday = calculateDailySummary(allEntries, today);
+  try {
+    const ai = getGenAI();
+    const modelName = getModelName();
+    const response = await generateWithRetry(
+      ai,
+      {
+        model: modelName,
+        // Source/category names are user-typed: they travel inside the data block.
+        contents: wrapWithContext(`FACTS:\n${factsForPrompt(facts)}`),
+        config: {
+          systemInstruction: buildInsightsPrompt({ workerType: req.sessionProfile?.workerType || 'delivery', language }),
+          thinkingConfig: thinkingConfigFor(modelName, 'low'),
+          responseMimeType: 'application/json',
+        },
+      },
+      { timeoutMs: TIMEOUTS.synthesis, retries: 1 }
+    );
+    const output = InsightOutputSchema.safeParse(parseModelJson(response.text));
+    if (output.success && isInsightFaithful(output.data, facts)) {
+      const { summary, tips, warning } = output.data;
+      return res.json({ facts, summary, tips, ...(warning ? { warning } : {}), usedFallback: false });
+    }
+  } catch (err) {
+    console.error('[Money Insights Error]', (err as Error).message);
+  }
+  return res.json({ facts, ...fallbackInsights(facts, language) });
+});
 
+// ---------------------------------------------------------------------------
+// POST /api/ai/confirm-money - saves confirmed transactions
+// ---------------------------------------------------------------------------
+
+type ConfirmMoneyInput = z.infer<typeof ConfirmMoneySchema>;
+type SavedEntry = Record<string, unknown> & { id: string; type: 'earning' | 'expense' };
+
+/**
+ * Validates and saves a confirmed earning and/or expense for one session.
+ * Everything is validated before anything is written, so a bad expense never
+ * leaves a half-saved pair. Returns null when the input is not valid.
+ */
+function saveConfirmedMoney(sessionId: string, input: ConfirmMoneyInput): SavedEntry[] | null {
+  const today = getTodayDateString();
+  const now = Date.now();
+  const { earning, expense } = input;
+  let earningPaise = 0;
+  let expensePaise = 0;
+  let trips: number | null = null;
+  let workMinutes: number | null = null;
+  try {
+    if (earning) earningPaise = parseRupeeAmount(earning.amount);
+    if (expense) expensePaise = parseRupeeAmount(expense.amount);
+    if (earning) {
+      trips = parseTrips(earning.trips);
+      workMinutes = parseWorkHours(earning.hours);
+    }
+  } catch (err) {
+    if (err instanceof MoneyValidationError) return null;
+    throw err;
+  }
+  const earningDate = earning?.date || today;
+  const expenseDate = expense?.date || today;
+  if ((earning && validateEntryDate(earningDate, today)) || (expense && validateEntryDate(expenseDate, today))) return null;
+
+  const savedEntries: SavedEntry[] = [];
+  db.exec('BEGIN');
+  try {
+    if (earning && earningPaise > 0) {
+      const id = 'entry_' + crypto.randomUUID();
+      const source = (earning.source || 'Earning').slice(0, 60);
+      db.prepare(`
+        INSERT INTO money_entries (id, session_id, type, amount_paise, category_or_source, note, date, created_at, updated_at, trips, work_minutes)
+        VALUES (?, ?, 'earning', ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, sessionId, earningPaise, source, null, earningDate, now, now, trips, workMinutes);
+      savedEntries.push({ id, type: 'earning', amountRupees: paiseToRupees(earningPaise), source, trips, workMinutes });
+    }
+    if (expense && expensePaise > 0) {
+      const id = 'entry_' + crypto.randomUUID();
+      const category = expense.category || 'Other';
+      db.prepare(`
+        INSERT INTO money_entries (id, session_id, type, amount_paise, category_or_source, note, date, created_at, updated_at)
+        VALUES (?, ?, 'expense', ?, ?, ?, ?, ?, ?)
+      `).run(id, sessionId, expensePaise, category, null, expenseDate, now, now);
+      savedEntries.push({ id, type: 'expense', amountRupees: paiseToRupees(expensePaise), category });
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+  return savedEntries;
+}
+
+function todaySummaryFor(sessionId: string) {
+  const today = getTodayDateString();
+  const rows = db.prepare('SELECT * FROM money_entries WHERE session_id = ? AND date = ?').all(sessionId, today) as any[];
+  const entries: MoneyEntryRecord[] = rows.map((r) => ({
+    id: r.id,
+    sessionId: r.session_id,
+    type: r.type,
+    amountPaise: r.amount_paise,
+    categoryOrSource: r.category_or_source,
+    note: r.note,
+    date: r.date,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }));
+  return calculateDailySummary(entries, today);
+}
+
+router.post('/confirm-money', (req, res) => {
+  const language = toLang(req.sessionProfile?.language);
+  const parsed = ConfirmMoneySchema.safeParse(req.body);
+  const savedEntries = parsed.success ? saveConfirmedMoney(req.sessionId, parsed.data) : null;
+  if (!savedEntries) {
+    return sendApiError(req, res, 400, 'validation_failed', { message: MESSAGES.invalidConfirmation[language] });
+  }
   res.json({
     success: true,
     savedEntries,
-    updatedToday,
+    updatedToday: todaySummaryFor(req.sessionId),
     message: MESSAGES.saved[language],
   });
 });
@@ -431,20 +670,20 @@ async function generateGroundedAnswer(params: {
   workerType: string;
   state: string;
   topic: 'scheme' | 'rights';
+  history?: ContextTurn[];
+  stream?: StreamHooks;
 }) {
-  const { query, language, workerType, state, topic } = params;
+  const { query, language, workerType, state, topic, history, stream } = params;
   const relatedSchemes = relatedSchemesFor(topic, workerType, state, language);
   const schemeReference = topic === 'scheme' ? schemeReferenceForPrompt(matchSchemes({ workerType, state })) : '';
   const withRelated = <T extends object>(result: T) => (relatedSchemes.length ? { ...result, relatedSchemes } : result);
 
   try {
-    const ai = getGenAI();
     const modelName = getModelName();
-    const response = await generateWithRetry(
-      ai,
+    const response = await generateMaybeStreaming(
       {
         model: modelName,
-        contents: wrapUserInput(query),
+        contents: wrapWithContext(query, history),
         config: {
           systemInstruction: buildGroundedPrompt({ workerType, state, language, topic, schemeReference }),
           thinkingConfig: thinkingConfigFor(modelName, 'low'),
@@ -453,7 +692,9 @@ async function generateGroundedAnswer(params: {
           tools: [{ googleSearch: {} }],
         },
       },
-      { timeoutMs: TIMEOUTS.grounded, retries: 1 }
+      { timeoutMs: TIMEOUTS.grounded, retries: 1 },
+      stream,
+      (partial) => stripUntrustedUrls(partial) === partial && findUnlistedPhoneNumbers([partial], query).length === 0
     );
 
     // Source links come only from grounding metadata, never from model-written text.
@@ -544,18 +785,18 @@ async function generateConversationalGuidance(params: {
   language: Lang;
   workerType: string;
   isSafety: boolean;
+  history?: ContextTurn[];
+  stream?: StreamHooks;
 }) {
-  const { query, language, workerType, isSafety } = params;
+  const { query, language, workerType, isSafety, history, stream } = params;
   const fallback = () => (isSafety ? safetyFallback(language) : generalFallback(language));
 
   try {
-    const ai = getGenAI();
     const modelName = getModelName();
-    const response = await generateWithRetry(
-      ai,
+    const response = await generateMaybeStreaming(
       {
         model: modelName,
-        contents: wrapUserInput(query),
+        contents: wrapWithContext(query, history),
         config: {
           systemInstruction: buildGuidancePrompt({
             workerType,
@@ -567,7 +808,9 @@ async function generateConversationalGuidance(params: {
           responseMimeType: 'application/json',
         },
       },
-      { timeoutMs: TIMEOUTS.synthesis, retries: 1 }
+      { timeoutMs: TIMEOUTS.synthesis, retries: 1 },
+      stream,
+      (partial) => findUnlistedPhoneNumbers([partial], query).length === 0
     );
 
     const output = GuidanceOutputSchema.safeParse(parseModelJson(response.text));
@@ -645,5 +888,78 @@ function persistTurn(
     return undefined;
   }
 }
+
+/** Turns older than this are not used as context for a new question. */
+const CONTEXT_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const CONTEXT_TURNS = 6;
+const HISTORY_LIMIT = 60;
+
+/** The session's last few chat turns (oldest first), used as context for follow-up questions. */
+export function loadContextTurns(sessionId: string, now = Date.now()): ContextTurn[] {
+  try {
+    const rows = db
+      .prepare(
+        `SELECT role, content FROM messages
+         WHERE session_id = ? AND created_at >= ? AND content != ''
+         ORDER BY created_at DESC LIMIT ?`
+      )
+      .all(sessionId, now - CONTEXT_MAX_AGE_MS, CONTEXT_TURNS) as unknown as ContextTurn[];
+    return rows.reverse();
+  } catch (err) {
+    console.error('[Context Load Error]', (err as Error).message);
+    return [];
+  }
+}
+
+/**
+ * A stored reply as the client can show it again. Money confirmation cards are
+ * reduced to text: a replayed card must never offer to save the same entry twice.
+ */
+function replayable(structured: string | null): Record<string, unknown> | undefined {
+  if (!structured) return undefined;
+  try {
+    const body = JSON.parse(structured) as Record<string, unknown>;
+    if (body.type === 'confirmation') return undefined;
+    const { rawIntent: _rawIntent, privacyNotice: _privacyNotice, conversationId: _conversationId, ...rest } = body;
+    return rest;
+  } catch {
+    return undefined;
+  }
+}
+
+// GET /api/ai/history - this session's saved chat (oldest first), so it survives a reload.
+router.get('/history', (req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT id, role, content, structured_data, created_at FROM messages
+       WHERE session_id = ? ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(req.sessionId, HISTORY_LIMIT) as Array<{
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    structured_data: string | null;
+    created_at: number;
+  }>;
+  const messages = rows.reverse().map((row) => {
+    const data = row.role === 'assistant' ? replayable(row.structured_data) : undefined;
+    return { id: row.id, role: row.role, content: row.content, createdAt: row.created_at, ...(data ? { data } : {}) };
+  });
+  res.json({ messages });
+});
+
+// DELETE /api/ai/history - forget this session's chat (and its context for future answers).
+router.delete('/history', (req, res) => {
+  db.exec('BEGIN');
+  try {
+    db.prepare('DELETE FROM messages WHERE session_id = ?').run(req.sessionId);
+    db.prepare('DELETE FROM conversations WHERE session_id = ?').run(req.sessionId);
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+  res.status(204).end();
+});
 
 export default router;

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/index.js';
+import { accountForSession } from './auth.js';
 
 const router = Router();
 
@@ -12,7 +13,7 @@ const OnboardingSchema = z.object({
 
 router.get('/', (req, res) => {
   res.json({
-    session: req.sessionProfile,
+    session: { ...req.sessionProfile, account: accountForSession(req.sessionId) },
   });
 });
 

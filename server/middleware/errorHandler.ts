@@ -11,6 +11,10 @@ export type ApiErrorCode =
   | 'unsupported_file_type'
   | 'not_found'
   | 'rate_limited'
+  | 'invalid_credentials'
+  | 'unauthorized'
+  | 'username_taken'
+  | 'cross_site_blocked'
   | 'internal_error';
 
 /** Safe, user-facing messages. Raw exception text is never sent to clients. */
@@ -35,10 +39,15 @@ const MESSAGES: Record<ApiErrorCode, Record<Lang, string>> = {
     en: 'The file or data is too large. Please send a file under 10MB.',
     pa: 'ਫ਼ਾਈਲ ਜਾਂ ਡਾਟਾ ਬਹੁਤ ਵੱਡਾ ਹੈ। 10MB ਤੋਂ ਛੋਟੀ ਫ਼ਾਈਲ ਭੇਜੋ।',
   },
+  cross_site_blocked: {
+    hi: 'Yeh request kisi doosri website se aayi thi, isliye rok di gayi.',
+    en: 'This request came from another website, so it was blocked.',
+    pa: 'ਇਹ ਬੇਨਤੀ ਕਿਸੇ ਹੋਰ ਵੈੱਬਸਾਈਟ ਤੋਂ ਆਈ ਸੀ, ਇਸ ਲਈ ਰੋਕ ਦਿੱਤੀ ਗਈ।',
+  },
   unsupported_file_type: {
-    hi: 'Sirf PDF, JPG aur PNG file hi upload ho sakti hai.',
-    en: 'Only PDF, JPG and PNG files can be uploaded.',
-    pa: 'ਸਿਰਫ਼ PDF, JPG ਅਤੇ PNG ਫ਼ਾਈਲ ਹੀ ਅੱਪਲੋਡ ਹੋ ਸਕਦੀ ਹੈ।',
+    hi: 'Sirf PDF, JPG, PNG aur WebP file hi upload ho sakti hai.',
+    en: 'Only PDF, JPG, PNG and WebP files can be uploaded.',
+    pa: 'ਸਿਰਫ਼ PDF, JPG, PNG ਅਤੇ WebP ਫ਼ਾਈਲ ਹੀ ਅੱਪਲੋਡ ਹੋ ਸਕਦੀ ਹੈ।',
   },
   not_found: {
     hi: 'Yeh cheez nahi mili.',
@@ -49,6 +58,21 @@ const MESSAGES: Record<ApiErrorCode, Record<Lang, string>> = {
     hi: 'Bahut zyada requests aa gayi hain. Kripya thodi der baad koshish karein.',
     en: 'Too many requests. Please wait a moment and try again.',
     pa: 'ਬਹੁਤ ਜ਼ਿਆਦਾ ਬੇਨਤੀਆਂ ਆ ਗਈਆਂ ਹਨ। ਕਿਰਪਾ ਕਰਕੇ ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+  },
+  invalid_credentials: {
+    hi: 'Username ya password galat hai.',
+    en: 'Wrong username or password.',
+    pa: 'ਯੂਜ਼ਰਨੇਮ ਜਾਂ ਪਾਸਵਰਡ ਗਲਤ ਹੈ।',
+  },
+  unauthorized: {
+    hi: 'Pehle login karein.',
+    en: 'Please log in first.',
+    pa: 'ਪਹਿਲਾਂ ਲੌਗਇਨ ਕਰੋ।',
+  },
+  username_taken: {
+    hi: 'Yeh username pehle se liya ja chuka hai. Koi aur chunein.',
+    en: 'That username is already taken. Please pick another.',
+    pa: 'ਇਹ ਯੂਜ਼ਰਨੇਮ ਪਹਿਲਾਂ ਹੀ ਲਿਆ ਜਾ ਚੁੱਕਾ ਹੈ। ਕੋਈ ਹੋਰ ਚੁਣੋ।',
   },
   internal_error: {
     hi: 'Kuch gadbad ho gayi. Kripya thodi der baad dobara koshish karein.',

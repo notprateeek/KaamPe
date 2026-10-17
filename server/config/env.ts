@@ -22,6 +22,14 @@ export const EnvSchema = z.object({
   PORT: z.coerce.number().int().min(0).max(65535).default(3001),
   GEMINI_API_KEY: optionalNonEmpty,
   GEMINI_MODEL: z.string().trim().min(1).default('gemini-3.8-flash'),
+  /** Comma-separated models tried when GEMINI_MODEL's quota runs out ("" = none). */
+  GEMINI_FALLBACK_MODELS: z.string().optional(),
+  /** Optional OpenAI fallback: used when Gemini's key is missing or a Gemini call fails. */
+  OPENAI_API_KEY: optionalNonEmpty,
+  OPENAI_MODEL: z.string().trim().min(1).default('gpt-5.4-mini'),
+  OPENAI_BASE_URL: optionalNonEmpty.pipe(z.string().url().optional()),
+  /** Preferred provider; the other one is used when this one's key is missing. */
+  AI_PROVIDER: z.enum(['gemini', 'openai']).default('gemini'),
   /** Exact frontend origin allowed for cross-origin requests in production. */
   CORS_ORIGIN: optionalNonEmpty.pipe(z.string().url().optional()),
   /** Number of reverse-proxy hops to trust for req.ip (Render / Cloud Run = 1). */
@@ -36,6 +44,19 @@ export const EnvSchema = z.object({
   RATE_LIMIT_API_MAX: z.coerce.number().int().positive().max(1_000_000).optional(),
   /** Requests per window per client on expensive AI / document routes. */
   RATE_LIMIT_AI_MAX: z.coerce.number().int().positive().max(1_000_000).optional(),
+  /** Demo account (seeded sample data). Set DEMO_LOGIN_ENABLED=false to turn it off. */
+  DEMO_LOGIN_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  DEMO_USERNAME: z.string().trim().min(1).max(64).default('demo'),
+  DEMO_PASSWORD: z.string().min(1).max(128).default('kaampe-demo'),
+  /** Admin panel (/admin). Aggregate, anonymised stats only. */
+  ADMIN_USERNAME: z.string().trim().min(1).max(64).default('admin'),
+  ADMIN_PASSWORD: z.string().min(1).max(128).default('kaampe-admin'),
+  /** HMAC key for admin tokens; derived from the admin credentials when unset. In production the
+   *  panel stays disabled (404) while ADMIN_PASSWORD is the default. */
+  ADMIN_TOKEN_SECRET: optionalNonEmpty.pipe(z.string().min(16).optional()),
 });
 
 export type ServerEnv = z.infer<typeof EnvSchema> & {

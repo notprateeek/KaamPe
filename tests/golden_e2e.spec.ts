@@ -19,6 +19,13 @@ test.describe('KaamPe Golden E2E Journey (Section 45)', () => {
     // STEP 1: ONBOARDING
     // ----------------------------------------------------
     await page.goto('/');
+    // Login gate (first visit): continue as a guest, which leads to onboarding.
+    const guestBtn = page.getByRole('button', { name: /Bina account ke aage badhein/i });
+    await expect(guestBtn.or(page.getByText('Namaste 👋'))).toBeVisible({ timeout: 10000 });
+    if (await guestBtn.isVisible()) {
+      await guestBtn.click();
+      await page.getByRole('button', { name: /हिन्दी/i }).waitFor();
+    }
 
     // Choose Hindi
     const hindiBtn = page.getByRole('button', { name: /हिन्दी/i });
@@ -106,7 +113,9 @@ test.describe('KaamPe Golden E2E Journey (Section 45)', () => {
     await page.getByRole('button', { name: 'Poochhein' }).click();
     const schemeResponse = await schemeResponsePromise;
     expect(schemeResponse.ok()).toBe(true);
-    const scheme = await schemeResponse.json();
+    // The chat streams NDJSON events; the last one ("done") carries the full answer.
+    const events = (await schemeResponse.text()).trim().split('\n').map((line) => JSON.parse(line));
+    const scheme = events.at(-1).body;
     expect(scheme.intent).toBe('scheme');
     expect(scheme.sources.length).toBeGreaterThan(0);
     for (const source of scheme.sources) {

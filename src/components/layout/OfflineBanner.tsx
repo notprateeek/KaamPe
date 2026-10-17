@@ -21,7 +21,7 @@ export const OfflineBanner: React.FC = () => {
   return (
     <div role="status" aria-live="polite">
       {!online && (
-        <p className="flex items-center justify-center gap-2 bg-ink text-white text-sm font-medium px-4 py-2">
+        <p className="flex items-center justify-center gap-2 bg-ink text-inverse text-sm font-medium px-4 py-2">
           <WifiOff className="w-4 h-4 shrink-0" aria-hidden="true" />
           {t.common.offline}
         </p>

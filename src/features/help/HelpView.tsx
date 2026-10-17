@@ -8,6 +8,9 @@ import { ReadAloudButton, actionButtonClass } from '../../components/speech/Read
 import { CopyButton } from '../../components/speech/CopyButton';
 import { SchemeEligibility } from '../schemes/SchemeEligibility';
 import { DocumentQuestion } from '../documents/DocumentQuestion';
+import { RightsLibrary } from '../rights/RightsLibrary';
+import { SafetyCoach } from '../safety/SafetyCoach';
+import { compressImage } from '../../lib/compressImage';
 import { GuidedGrievance, type GrievanceGuideResponse } from '../grievance/GuidedGrievance';
 import { computePlatformStats, fetchMoneyEntries, fetchMoneySummary, fill, formatPaise } from '../money/moneyUtils';
 import {
@@ -21,6 +24,8 @@ import {
   ArrowRight,
   Landmark,
   PenLine,
+  Scale,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface DocExplanation {
@@ -32,12 +37,12 @@ interface DocExplanation {
   readable: boolean;
 }
 
-export type HelpTab = 'doc' | 'dispute' | 'schemes';
-const TABS: HelpTab[] = ['doc', 'dispute', 'schemes'];
+export type HelpTab = 'doc' | 'dispute' | 'schemes' | 'rights' | 'safety';
+const TABS: HelpTab[] = ['doc', 'dispute', 'schemes', 'rights', 'safety'];
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png'];
-const ALLOWED_EXT = /\.(pdf|jpe?g|png)$/i;
+const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+const ALLOWED_EXT = /\.(pdf|jpe?g|png|webp)$/i;
 const MAX_DISPUTE_CHARS = 1500;
 const MAX_CHAT_CHARS = 2000;
 
@@ -63,7 +68,7 @@ export const HelpView: React.FC<{
 }> = ({ initialTab = 'doc', onNavigateToChatWithPrompt, onTabChange }) => {
   const { t, profile } = useApp();
   const [activeTab, setActiveTab] = useState<HelpTab>(initialTab);
-  const tabRefs = useRef<Record<HelpTab, HTMLButtonElement | null>>({ doc: null, dispute: null, schemes: null });
+  const tabRefs = useRef<Record<HelpTab, HTMLButtonElement | null>>({ doc: null, dispute: null, schemes: null, rights: null, safety: null });
 
   // Document state
   const [file, setFile] = useState<File | null>(null);
@@ -118,14 +123,16 @@ export const HelpView: React.FC<{
   };
 
   // ---------------- Document ----------------
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = e.target.files?.[0];
     e.target.value = ''; // allow re-selecting the same file
-    if (!selected) return;
-    if (!ALLOWED_MIME.includes(selected.type) && !ALLOWED_EXT.test(selected.name)) {
+    if (!picked) return;
+    if (!ALLOWED_MIME.includes(picked.type) && !ALLOWED_EXT.test(picked.name)) {
       setDocError(t.help.docTypeError);
       return;
     }
+    // Phone photos are shrunk on the device (≤1600px JPEG): faster on mobile data. PDFs pass through.
+    const selected = await compressImage(picked);
     if (selected.size > MAX_FILE_BYTES) {
       setDocError(t.help.docTooLarge);
       return;
@@ -275,6 +282,8 @@ export const HelpView: React.FC<{
     doc: { label: t.help.tabExplainDoc, icon: FileText },
     dispute: { label: t.help.tabDispute, icon: AlertCircle },
     schemes: { label: t.help.tabSchemes, icon: Landmark },
+    rights: { label: t.insights.rightsTab, icon: Scale },
+    safety: { label: t.safetyCoach.tab, icon: ShieldCheck },
   };
 
   return (
@@ -287,7 +296,7 @@ export const HelpView: React.FC<{
 
       {/* TABS (WAI-ARIA tabs pattern: roving tabindex, arrow/Home/End keys, automatic activation) */}
       <div
-        className="flex gap-1 bg-surface-1 p-1 rounded-2xl sm:rounded-full border border-hairline md:max-w-2xl"
+        className="flex gap-1 bg-surface-1 p-1 rounded-2xl sm:rounded-full border border-hairline md:max-w-3xl"
         role="tablist"
         aria-label={t.help.tabListLabel}
         onKeyDown={handleTabKeyDown}
@@ -309,7 +318,7 @@ export const HelpView: React.FC<{
               tabIndex={selected ? 0 : -1}
               onClick={() => selectTab(tab)}
               className={`flex-1 min-w-0 min-h-[44px] px-1.5 sm:px-3 py-1.5 text-xs sm:text-sm font-bold leading-tight rounded-xl sm:rounded-full flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink ${
-                selected ? 'bg-ink text-white' : 'text-ink hover:bg-surface-2'
+                selected ? 'bg-ink text-inverse' : 'text-ink hover:bg-surface-2'
               }`}
             >
               <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
@@ -332,7 +341,7 @@ export const HelpView: React.FC<{
                 <input
                   id="doc-file-input"
                   type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
                   onChange={handleFileChange}
                   aria-describedby="doc-file-hint"
                   className="peer sr-only"
@@ -634,6 +643,16 @@ export const HelpView: React.FC<{
       {/* TAB 3: SCHEME ELIGIBILITY (kept mounted so answers survive tab switches) */}
       <div role="tabpanel" id="help-panel-schemes" aria-labelledby="help-tab-schemes" hidden={activeTab !== 'schemes'}>
         <SchemeEligibility onAskAboutScheme={onNavigateToChatWithPrompt} />
+      </div>
+
+      {/* TAB 4: KNOW YOUR RIGHTS */}
+      <div role="tabpanel" id="help-panel-rights" aria-labelledby="help-tab-rights" hidden={activeTab !== 'rights'}>
+        {activeTab === 'rights' && <RightsLibrary onAsk={(p) => onNavigateToChatWithPrompt?.(p)} />}
+      </div>
+
+      {/* TAB 5: SAFETY COACH */}
+      <div role="tabpanel" id="help-panel-safety" aria-labelledby="help-tab-safety" hidden={activeTab !== 'safety'}>
+        {activeTab === 'safety' && <SafetyCoach />}
       </div>
     </div>
   );

@@ -20,7 +20,7 @@ import { SAFETY_RULES } from '../services/ai/prompts.js';
 const router = Router();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadDir = path.resolve(__dirname, '../../uploads_tmp');
+const uploadDir = process.env.VERCEL ? '/tmp/uploads_tmp' : path.resolve(__dirname, '../../uploads_tmp');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 export const MAX_AUDIO_BYTES = 4 * 1024 * 1024;

@@ -53,6 +53,13 @@ async function fakeBrowserSpeech(page: Page, behaviour: { transcript?: string; e
 
 async function completeOnboarding(page: Page) {
   await page.goto('/');
+  // Login gate (first visit): continue as a guest, which leads to onboarding.
+  const guestBtn = page.getByRole('button', { name: /Bina account ke aage badhein/i });
+  await expect(guestBtn.or(page.getByText('Namaste 👋'))).toBeVisible({ timeout: 10000 });
+  if (await guestBtn.isVisible()) {
+    await guestBtn.click();
+    await page.getByRole('button', { name: /हिन्दी/i }).waitFor();
+  }
   const hindiBtn = page.getByRole('button', { name: /हिन्दी/i });
   if (await hindiBtn.isVisible()) {
     await hindiBtn.click();

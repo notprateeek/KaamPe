@@ -63,7 +63,7 @@ function chunkText(text: string, max = 180): string[] {
  * Text-to-speech via window.speechSynthesis. Only one thing speaks at a time
  * across the app: starting a new read cancels any other. Cancels on unmount.
  */
-export function useSpeechSynthesis(language: Language) {
+export function useSpeechSynthesis(language: Language, rate = 0.95) {
   const [supported] = useState(() => getSynth() !== null);
   const [speaking, setSpeaking] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -119,7 +119,7 @@ export function useSpeechSynthesis(language: Language) {
         const utterance = new SpeechSynthesisUtterance(chunk);
         utterance.lang = locale;
         if (voice) utterance.voice = voice;
-        utterance.rate = 0.95;
+        utterance.rate = rate;
         utterance.onerror = (e) => {
           // 'interrupted'/'canceled' happen when we (or another button) stop it.
           const benign = e.error === 'interrupted' || e.error === 'canceled';
@@ -131,7 +131,7 @@ export function useSpeechSynthesis(language: Language) {
       ownsSpeechRef.current = true;
       setSpeaking(true);
     },
-    [language]
+    [language, rate]
   );
 
   useEffect(() => {

@@ -64,6 +64,9 @@ export function useVoiceRecorder({ language, onTranscript }: UseVoiceRecorderOpt
   const timerRef = useRef<number | undefined>(undefined);
   const abortRef = useRef<AbortController | null>(null);
   const discardRef = useRef(false);
+  /** True while waiting for mic permission, when `state` is still 'idle'. */
+  const startingRef = useRef(false);
+  const mountedRef = useRef(true);
   const onTranscriptRef = useRef(onTranscript);
   onTranscriptRef.current = onTranscript;
 
@@ -113,6 +116,8 @@ export function useVoiceRecorder({ language, onTranscript }: UseVoiceRecorderOpt
   }, []);
 
   const start = useCallback(async () => {
+    // A second tap while the permission prompt is open must not open a second mic.
+    if (startingRef.current || recorderRef.current) return;
     setError(null);
     setServerMessage(null);
     if (!isVoiceRecordingSupported()) {
@@ -120,10 +125,18 @@ export function useVoiceRecorder({ language, onTranscript }: UseVoiceRecorderOpt
       return;
     }
     let stream: MediaStream;
+    startingRef.current = true;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
-      setError(mapStartError(err));
+      if (mountedRef.current) setError(mapStartError(err));
+      return;
+    } finally {
+      startingRef.current = false;
+    }
+    // Unmounted while waiting (e.g. the worker switched tab): never record in the background.
+    if (!mountedRef.current) {
+      stream.getTracks().forEach((track) => track.stop());
       return;
     }
     streamRef.current = stream;
@@ -194,7 +207,9 @@ export function useVoiceRecorder({ language, onTranscript }: UseVoiceRecorderOpt
 
   // Never keep the mic open or an upload running after unmount.
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       discardRef.current = true;
       const recorder = recorderRef.current;
       if (recorder && recorder.state !== 'inactive') recorder.stop();

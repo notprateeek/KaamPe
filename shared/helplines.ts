@@ -27,6 +27,16 @@ export const HELPLINES: readonly Helpline[] = [
     label: { hi: 'महिला हेल्पलाइन', en: 'Women helpline', pa: 'ਮਹਿਲਾ ਹੈਲਪਲਾਈਨ' },
   },
   {
+    id: 'women_police',
+    number: '1091',
+    label: { hi: 'महिला पुलिस हेल्पलाइन', en: 'Women police helpline', pa: 'ਮਹਿਲਾ ਪੁਲਿਸ ਹੈਲਪਲਾਈਨ' },
+  },
+  {
+    id: 'highway',
+    number: '1033',
+    label: { hi: 'राष्ट्रीय राजमार्ग आपातकाल (NHAI)', en: 'National highway emergency (NHAI)', pa: 'ਰਾਸ਼ਟਰੀ ਹਾਈਵੇ ਐਮਰਜੈਂਸੀ (NHAI)' },
+  },
+  {
     id: 'cyber',
     number: '1930',
     label: { hi: 'साइबर / UPI धोखाधड़ी', en: 'Cyber / UPI fraud', pa: 'ਸਾਈਬਰ / UPI ਧੋਖਾਧੜੀ' },

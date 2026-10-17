@@ -20,10 +20,10 @@ export const Button: React.FC<ButtonProps> = ({
   const base = 'inline-flex items-center justify-center font-medium transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]';
 
   const variants = {
-    primary: 'bg-ink text-white hover:bg-ink-hover shadow-subtle',
+    primary: 'bg-ink text-inverse hover:bg-ink-hover shadow-subtle',
     secondary: 'bg-surface-1 text-ink border-[1.5px] border-hairline hover:border-ink',
-    accent: 'bg-marigold text-ink font-bold hover:bg-marigold-hover',
-    danger: 'bg-semantic-error text-white hover:opacity-90 shadow-subtle',
+    accent: 'bg-marigold text-marigold-ink font-bold hover:bg-marigold-hover',
+    danger: 'bg-semantic-error text-inverse hover:opacity-90 shadow-subtle',
     ghost: 'text-ink hover:bg-wash border border-transparent',
   };
 

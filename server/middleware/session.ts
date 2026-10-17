@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
 import { db } from '../db/index.js';
+import { isDemoSessionId } from '../services/demo/seed.js';
 
 export interface KaampeSession {
   id: string;
@@ -9,6 +10,8 @@ export interface KaampeSession {
   state: string;
   createdAt: number;
   updatedAt: number;
+  /** Seeded demo account (see services/demo/seed.ts). */
+  isDemo?: boolean;
 }
 
 declare global {
@@ -28,6 +31,17 @@ const READ_ONLY_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export function isValidSessionId(value: unknown): value is string {
   return typeof value === 'string' && SESSION_ID_RE.test(value);
+}
+
+/** Options for the httpOnly guest-session cookie (also used by demo login / logout). */
+export function sessionCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: SESSION_MAX_AGE_MS,
+    path: '/',
+  };
 }
 
 function defaultProfile(id: string, now: number): KaampeSession {
@@ -60,13 +74,7 @@ export function sessionMiddleware(req: Request, res: Response, next: NextFunctio
   }
 
   if (cookieId !== sessionId) {
-    res.cookie(SESSION_COOKIE_NAME, sessionId, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: SESSION_MAX_AGE_MS,
-      path: '/',
-    });
+    res.cookie(SESSION_COOKIE_NAME, sessionId, sessionCookieOptions());
   }
 
   // Also return in header for easy client / test access
@@ -87,6 +95,7 @@ export function sessionMiddleware(req: Request, res: Response, next: NextFunctio
       state: existing.state,
       createdAt: existing.created_at,
       updatedAt: existing.updated_at,
+      ...(isDemoSessionId(existing.id) ? { isDemo: true } : {}),
     };
     return next();
   }

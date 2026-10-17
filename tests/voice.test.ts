@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getGenAI } from '../server/services/ai/gemini';
+import { getFallbackModels } from '../server/services/ai/client';
 import { createApp } from '../server/index';
 import { loadEnv } from '../server/config/env';
 import { db } from '../server/db/index';
@@ -89,6 +90,17 @@ describe('POST /api/ai/transcribe', () => {
     expect(body.error).toMatch(pattern);
   });
 
+  it('falls back to another model when the main model is out of quota', async () => {
+    generateContent
+      .mockRejectedValueOnce(Object.assign(new Error('RESOURCE_EXHAUSTED: quota'), { status: 429 }))
+      .mockResolvedValueOnce({ text: JSON.stringify({ heard: true, transcript: 'aaj 500 kamaye' }) });
+    const { res, body } = await transcribe(WEBM);
+    expect(res.status).toBe(200);
+    expect(body.transcript).toBe('aaj 500 kamaye');
+    expect(generateContent).toHaveBeenCalledTimes(2);
+    expect(generateContent.mock.calls[1][0].model).not.toBe(generateContent.mock.calls[0][0].model);
+  });
+
   it('says voice is unavailable on a quota error, without a transcript, and deletes the audio', async () => {
     const before = voiceFiles().length;
     generateContent.mockRejectedValue(Object.assign(new Error('RESOURCE_EXHAUSTED: quota'), { status: 429 }));
@@ -97,7 +109,8 @@ describe('POST /api/ai/transcribe', () => {
     expect(body.code).toBe('ai_unavailable');
     expect(body.transcript).toBeUndefined();
     expect(body.error).toMatch(/type instead/);
-    expect(generateContent).toHaveBeenCalledTimes(1); // no retry of an expensive audio upload
+    // No transient retry of an expensive upload: one call to the main model, one per quota fallback.
+    expect(generateContent).toHaveBeenCalledTimes(1 + getFallbackModels().length);
     expect(voiceFiles().length).toBe(before);
   });
 

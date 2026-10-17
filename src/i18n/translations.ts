@@ -266,6 +266,7 @@ export interface Translations {
   };
   common: {
     undo: string;
+    moreApps: string;
     offline: string;
     error: string;
     retry: string;
@@ -400,6 +401,229 @@ export interface Translations {
     notSent: string;
     fallbackNote: string;
     invalidAmount: string;
+  };
+  /** Light / dark / system appearance */
+  theme: {
+    title: string;
+    system: string;
+    light: string;
+    dark: string;
+    switchTo: string;
+  };
+  /** Read-aloud accessibility settings and helpers */
+  access: {
+    title: string;
+    readPage: string;
+    stopReading: string;
+    autoRead: string;
+    autoReadHint: string;
+    tapToHear: string;
+    tapToHearHint: string;
+    speechRate: string;
+    rateSlow: string;
+    rateNormal: string;
+    rateFast: string;
+    testVoice: string;
+    testVoiceSample: string;
+  };
+  /** Demo account sign-in */
+  demo: {
+    cardTitle: string;
+    cardText: string;
+    tryDemo: string;
+    loginTitle: string;
+    loginIntro: string;
+    username: string;
+    password: string;
+    login: string;
+    loggingIn: string;
+    credsLabel: string;
+    fillCreds: string;
+    failed: string;
+    welcome: string;
+    badge: string;
+    logout: string;
+    loggedOut: string;
+    adminLink: string;
+  };
+  /** Operator panel at /admin */
+  admin: {
+    title: string;
+    subtitle: string;
+    loginTitle: string;
+    login: string;
+    loggingIn: string;
+    logout: string;
+    refresh: string;
+    updated: string;
+    loadFailed: string;
+    backToApp: string;
+    totalSessions: string;
+    active7d: string;
+    demoSessions: string;
+    moneyEntries: string;
+    earningsTracked: string;
+    expensesTracked: string;
+    conversations: string;
+    messages: string;
+    documents: string;
+    byWorker: string;
+    byState: string;
+    byLanguage: string;
+    activity: string;
+    newSessions: string;
+    entriesLogged: string;
+    topics: string;
+    recent: string;
+    colRef: string;
+    colWho: string;
+    colEntries: string;
+    colLastActive: string;
+    demoTag: string;
+    none: string;
+    privacyNote: string;
+  };
+  /** Home / Help content cards: rights tips, schemes for you, week pulse */
+  insights: {
+    tipTitle: string;
+    tipNext: string;
+    tipAsk: string;
+    schemesTitle: string;
+    schemesHint: string;
+    checkAll: string;
+    officialSite: string;
+    weekTitle: string;
+    weekEarned: string;
+    bestDay: string;
+    activeDays: string;
+    weekEmpty: string;
+    rightsTab: string;
+    rightsTitle: string;
+    rightsIntro: string;
+    askAbout: string;
+    rightsNote: string;
+    keyPoints: string;
+  };
+  /** Complaint letter extras: sign-off name and English copy */
+  letter: {
+    nameLabel: string;
+    nameHint: string;
+    englishTitle: string;
+    englishHint: string;
+  };
+  /** Trust notes shown next to AI answers and external links */
+  trust: {
+    aiNote: string;
+    newTab: string;
+  };
+  /** Money → AI insights on the last 30 days */
+  moneyInsights: {
+    title: string;
+    intro: string;
+    get: string;
+    getting: string;
+    refresh: string;
+    empty: string;
+    tipsTitle: string;
+    warningTitle: string;
+  };
+  /** Optional trips / hours on an earning, and per-trip / per-hour rates */
+  work: {
+    title: string;
+    optional: string;
+    tripsLabel: string;
+    hoursLabel: string;
+    invalid: string;
+    perTrip: string;
+    perHour: string;
+    tripsShort: string;
+    hoursShort: string;
+  };
+  /** Opt-in: save money from chat without the confirmation tap */
+  autoSave: {
+    label: string;
+    hint: string;
+    undone: string;
+  };
+  /** Streaming chat replies */
+  stream: {
+    stop: string;
+    stopped: string;
+  };
+  /** Help → Safety: situation chips and a short checklist */
+  safetyCoach: {
+    tab: string;
+    title: string;
+    intro: string;
+    quickLabel: string;
+    situationLabel: string;
+    placeholder: string;
+    get: string;
+    getting: string;
+    firstStep: string;
+    helplinesTitle: string;
+    situations: {
+      night: string;
+      rain: string;
+      heat: string;
+      harassment: string;
+      accident: string;
+      otp: string;
+    };
+  };
+  /** Landing sign-in screen */
+  auth: {
+    heroTitle: string;
+    heroText: string;
+    featMoney: string;
+    featRights: string;
+    featSchemes: string;
+    featSafety: string;
+    demoButton: string;
+    demoHint: string;
+    orDivider: string;
+    signInTab: string;
+    signUpTab: string;
+    username: string;
+    usernameHint: string;
+    password: string;
+    passwordHint: string;
+    name: string;
+    signIn: string;
+    signingIn: string;
+    signUp: string;
+    signingUp: string;
+    guest: string;
+    guestHint: string;
+    invalidUsername: string;
+    invalidPassword: string;
+    failed: string;
+    welcomeBack: string;
+    welcomeNew: string;
+    logout: string;
+    loggedOut: string;
+    signedInAs: string;
+    guestLabel: string;
+    adminOpening: string;
+  };
+  /** Sidebar / menu tools */
+  tools: {
+    title: string;
+    openMenu: string;
+    closeMenu: string;
+    assistant: string;
+    assistantDesc: string;
+    schemes: string;
+    schemesDesc: string;
+    rights: string;
+    rightsDesc: string;
+    safety: string;
+    safetyDesc: string;
+    documents: string;
+    documentsDesc: string;
+    complaint: string;
+    complaintDesc: string;
+    preferences: string;
   };
 }
 
@@ -545,7 +769,7 @@ export const translations: Record<Language, Translations> = {
       tabExplainDoc: 'Document samjhein',
       tabDispute: 'Payment dispute help',
       docUploadTitle: 'Apna document upload karein',
-      docUploadDesc: 'Rate card, agreement, challan ya notice (PDF, JPG, PNG - max 10MB)',
+      docUploadDesc: 'Rate card, agreement, challan ya notice (PDF, JPG, PNG, WebP - max 10MB)',
       docUploadBtn: 'File chunein',
       docAnalyzing: 'Document padh rahe hain...',
       docWhatIsThis: 'Yeh document kya hai?',
@@ -570,11 +794,11 @@ export const translations: Record<Language, Translations> = {
       resultPlaceholderDispute: 'Aapka draft message yahan dikhega. Aap use edit karke copy kar sakte hain.',
       tabSchemes: 'Sarkari schemes',
       tabListLabel: 'Help ke vikalp',
-      docFileHint: 'PDF, JPG, PNG (max 10MB)',
+      docFileHint: 'PDF, JPG, PNG, WebP (max 10MB)',
       docTakePhoto: 'Camera se photo lein',
       docSelected: 'Chuni gayi file: {name}',
       docTooLarge: 'File 10MB se badi hai. Chhoti file chunein.',
-      docTypeError: 'Sirf PDF, JPG ya PNG file chunein.',
+      docTypeError: 'Sirf PDF, JPG, PNG ya WebP file chunein.',
       docUploadFailed: 'Document padh nahi paye. Kripya dobara try karein.',
       docComplaintTitle: 'Is document se koi shikayat hai?',
       docComplaintHint: 'Is document ki jaankari ke saath shikayat ka draft shuru karein',
@@ -670,6 +894,7 @@ export const translations: Record<Language, Translations> = {
     },
     common: {
       undo: "Wapas lein",
+      moreApps: "Aur apps",
       offline: "Internet nahi hai. Judte hi KaamPe phir chalega.",
       error: 'Kuch gadbad hui. Kripya dobara try karein.',
       retry: 'Dobara koshish karein',
@@ -798,6 +1023,215 @@ export const translations: Record<Language, Translations> = {
       notSent: 'KaamPe yeh sandesh khud nahi bhejta. Copy karke aap khud bhejein.',
       fallbackNote: 'AI abhi uplabdh nahi tha, isliye yeh seedha draft sirf aapki di hui jaankari se bana hai.',
       invalidAmount: 'Rakam sahi likhein (0 se zyada, 2 decimal tak).',
+    },
+    theme: {
+      title: "Rang (theme)",
+      system: "Phone jaisa",
+      light: "Din (light)",
+      dark: "Raat (dark)",
+      switchTo: "Theme badlein, abhi: {mode}",
+    },
+    access: {
+      title: "Sunne mein madad",
+      readPage: "Yeh screen sunein",
+      stopReading: "Padhna rokein",
+      autoRead: "Jawab apne aap sunayein",
+      autoReadHint: "KaamPe ka har naya jawab khud bol kar sunayega.",
+      tapToHear: "Chhoo kar sunein",
+      tapToHearHint: "Screen par koi bhi likha hua chhooein, KaamPe use padh kar sunayega.",
+      speechRate: "Bolne ki raftaar",
+      rateSlow: "Dheere",
+      rateNormal: "Normal",
+      rateFast: "Tez",
+      testVoice: "Aawaz check karein",
+      testVoiceSample: "Namaste! Main KaamPe hoon. Aapki kamai, haq aur madad ki baat seedhi bhasha mein.",
+    },
+    demo: {
+      cardTitle: "Demo dekhna hai?",
+      cardText: "Ek delivery rider ke 3 hafte ke hisaab ke saath app chala kar dekhein.",
+      tryDemo: "Demo account kholein",
+      loginTitle: "Demo account mein login",
+      loginIntro: "Is account mein pehle se sample kamai aur kharche bhare hain. Har login ek naya, alag copy deta hai.",
+      username: "Username",
+      password: "Password",
+      login: "Login karein",
+      loggingIn: "Login ho raha hai…",
+      credsLabel: "Demo login: {username} / {password}",
+      fillCreds: "Demo details bharein",
+      failed: "Login nahi ho paya. Dobara koshish karein.",
+      welcome: "Demo account khul gaya. Sab data sample hai.",
+      badge: "Demo account",
+      logout: "Demo se bahar niklein",
+      loggedOut: "Demo band. Naya khaali account shuru hua.",
+      adminLink: "Admin panel",
+    },
+    admin: {
+      title: "KaamPe Admin",
+      subtitle: "Istemal ke aankde (sirf ginti, koi niji baat nahi)",
+      loginTitle: "Admin login",
+      login: "Login karein",
+      loggingIn: "Login ho raha hai…",
+      logout: "Logout",
+      refresh: "Taaza karein",
+      updated: "{time} par update",
+      loadFailed: "Aankde load nahi hue. Dobara koshish karein.",
+      backToApp: "App par wapas",
+      totalSessions: "Kul users (sessions)",
+      active7d: "Pichhle 7 din active",
+      demoSessions: "Demo sessions",
+      moneyEntries: "Paise ki entries",
+      earningsTracked: "Kul kamai darj",
+      expensesTracked: "Kul kharcha darj",
+      conversations: "Baatcheet",
+      messages: "Sandesh",
+      documents: "Documents samjhaaye",
+      byWorker: "Kaam ke hisaab se",
+      byState: "Rajya ke hisaab se",
+      byLanguage: "Bhasha ke hisaab se",
+      activity: "Pichhle 14 din",
+      newSessions: "Naye users",
+      entriesLogged: "Entries",
+      topics: "Log kya poochh rahe hain",
+      recent: "Haal ke sessions",
+      colRef: "Ref",
+      colWho: "Kaun",
+      colEntries: "Entries",
+      colLastActive: "Aakhri baar",
+      demoTag: "demo",
+      none: "Abhi kuch nahi",
+      privacyNote: "Yahan kisi ka sandesh, note ya poora session ID nahi dikhaya jaata.",
+    },
+    insights: {
+      tipTitle: "Apna haq jaanein",
+      tipNext: "Agla",
+      tipAsk: "Is par sawaal karein",
+      schemesTitle: "Aapke liye yojanaayein",
+      schemesHint: "Aapke kaam ke hisaab se. Pakki jaankari official site par dekhein.",
+      checkAll: "Eligibility check karein",
+      officialSite: "Official site",
+      weekTitle: "Is hafte",
+      weekEarned: "{amount} kamaaye",
+      bestDay: "Sabse achha din: {day}, {amount}",
+      activeDays: "{count}/7 din kaam kiya",
+      weekEmpty: "Is hafte abhi koi entry nahi.",
+      rightsTab: "Aapke haq",
+      rightsTitle: "Kaam ke haq, aasaan bhasha mein",
+      rightsIntro: "Har topic chhoota rakha hai. Sunein, ya KaamPe se apni situation ke baare mein poochhein.",
+      askAbout: "KaamPe se sawaal karein",
+      rightsNote: "Yeh aam jaankari hai, kanooni salah nahi. Pakki baat ke liye labour office ya 15100 (muft kanooni madad) se baat karein.",
+      keyPoints: "Zaroori baatein",
+    },
+    letter: {
+      nameLabel: 'Aapka naam (chitthi ke neeche)',
+      nameHint: 'Zaroori nahi. Sirf isi phone par yaad rehta hai.',
+      englishTitle: 'English copy (company ya office ke liye)',
+      englishHint: 'Sirf aapki batayi baaton se bani hai. Bhejne se pehle padh lein.',
+    },
+    trust: {
+      aiNote: 'AI galti kar sakta hai. Zaroori baat sarkari site ya helpline se pakki karein.',
+      newTab: 'naye tab mein khulega',
+    },
+    moneyInsights: {
+      title: 'AI se hisaab samjhein',
+      intro: 'Pichhle 30 din ki kamai aur kharch par chhoti salah.',
+      get: 'Salah paayein',
+      getting: 'Dekh rahe hain…',
+      refresh: 'Dobara dekhein',
+      empty: 'Salah ke liye pehle kuch kamai ya kharch jodein.',
+      tipsTitle: 'Bachat badhane ke tarike',
+      warningTitle: 'Dhyan dein',
+    },
+    work: {
+      title: 'Kaam ki jaankari',
+      optional: 'zaroori nahi',
+      tripsLabel: 'Kitni delivery / trip',
+      hoursLabel: 'Kitne ghante',
+      invalid: 'Trip 0 se 1000 tak aur ghante 24 tak likhein.',
+      perTrip: '{amount} har trip',
+      perHour: '{amount} har ghanta',
+      tripsShort: '{n} trip',
+      hoursShort: '{n} ghante',
+    },
+    autoSave: {
+      label: 'Chat se paisa seedha save karein',
+      hint: 'Band ho to har baar pehle poochha jaata hai. Chalu ho to turant save hota hai aur Wapas lene ka option milta hai.',
+      undone: 'Entry hata di gayi.',
+    },
+    stream: {
+      stop: 'Rokein',
+      stopped: 'Jawab rok diya gaya.',
+    },
+    safetyCoach: {
+      tab: 'Suraksha',
+      title: 'Suraksha salah',
+      intro: 'Halaat chunein ya apne shabdon mein batayein. KaamPe chhoti checklist dega.',
+      quickLabel: 'Jaldi chunein',
+      situationLabel: 'Kya ho raha hai?',
+      placeholder: 'Jaise: raat ko sunsaan raste par delivery hai',
+      get: 'Suraksha steps paayein',
+      getting: 'Steps ban rahe hain…',
+      firstStep: 'Sabse pehle',
+      helplinesTitle: 'Zaroorat ho to call karein',
+      situations: {
+        night: 'Raat ko akele kaam',
+        rain: 'Tez baarish ya paani bhara',
+        heat: 'Bahut garmi / loo',
+        harassment: 'Koi pareshan ya dhamka raha hai',
+        accident: 'Sadak hadsa',
+        otp: 'Koi OTP ya PIN maang raha hai',
+      },
+    },
+    auth: {
+      heroTitle: "Kaam, paisa aur haq. Ek jagah.",
+      heroText: "Delivery, driving, construction ya ghar ka kaam: KaamPe aapki kamai ka hisaab rakhta hai, haq aur yojanaayein samjhata hai, aur shikayat likhne mein madad karta hai.",
+      featMoney: "Bol kar kamai aur kharcha likhein",
+      featRights: "Apne haq aasaan bhasha mein",
+      featSchemes: "Sarkari yojanaon ki jaanch",
+      featSafety: "Safety aur SOS ek tap par",
+      demoButton: "Demo dekhein, ek click mein",
+      demoHint: "3 hafte ke sample hisaab ke saath. Koi password nahi.",
+      orDivider: "ya login karein",
+      signInTab: "Login",
+      signUpTab: "Naya account",
+      username: "Username",
+      usernameHint: "3-32 akshar: a-z, 0-9, _ ya .",
+      password: "Password",
+      passwordHint: "Kam se kam 8 akshar",
+      name: "Aapka naam (zaroori nahi)",
+      signIn: "Login karein",
+      signingIn: "Login ho raha hai…",
+      signUp: "Account banayein",
+      signingUp: "Account ban raha hai…",
+      guest: "Bina account ke aage badhein",
+      guestHint: "Data sirf is phone ke session mein rahega.",
+      invalidUsername: "Username 3-32 akshar ka ho: a-z, 0-9, _ ya .",
+      invalidPassword: "Password kam se kam 8 akshar ka ho.",
+      failed: "Login nahi ho paya. Dobara koshish karein.",
+      welcomeBack: "Wapas aane par swagat hai!",
+      welcomeNew: "Account ban gaya. Ab apni jaankari bharein.",
+      logout: "Logout",
+      loggedOut: "Aap logout ho gaye.",
+      signedInAs: "{name} ke roop mein",
+      guestLabel: "Bina account",
+      adminOpening: "Admin panel khul raha hai…",
+    },
+    tools: {
+      title: "Tools",
+      openMenu: "Menu kholein",
+      closeMenu: "Menu band karein",
+      assistant: "Sahayak",
+      assistantDesc: "Kuch bhi poochhein",
+      schemes: "Yojanaayein",
+      schemesDesc: "Kaun si yojana aapke liye",
+      rights: "Aapke haq",
+      rightsDesc: "Kanoon aasaan bhasha mein",
+      safety: "Safety",
+      safetyDesc: "Raat, baarish, dhokha",
+      documents: "Documents",
+      documentsDesc: "Kaagaz samjhein",
+      complaint: "Shikayat",
+      complaintDesc: "Payment ya jhagde ki chitthi",
+      preferences: "Pasand",
     },
   },
   en: {
@@ -941,7 +1375,7 @@ export const translations: Record<Language, Translations> = {
       tabExplainDoc: 'Explain a document',
       tabDispute: 'Help with a dispute',
       docUploadTitle: 'Upload your document',
-      docUploadDesc: 'Rate card, agreement, penalty notice (PDF, JPG, PNG - max 10MB)',
+      docUploadDesc: 'Rate card, agreement, penalty notice (PDF, JPG, PNG, WebP - max 10MB)',
       docUploadBtn: 'Choose file',
       docAnalyzing: 'Analyzing document...',
       docWhatIsThis: 'What is this document?',
@@ -966,11 +1400,11 @@ export const translations: Record<Language, Translations> = {
       resultPlaceholderDispute: 'Your draft message will appear here. You can edit and copy it.',
       tabSchemes: 'Government schemes',
       tabListLabel: 'Help options',
-      docFileHint: 'PDF, JPG, PNG (max 10MB)',
+      docFileHint: 'PDF, JPG, PNG, WebP (max 10MB)',
       docTakePhoto: 'Take a photo',
       docSelected: 'Selected file: {name}',
       docTooLarge: 'File is larger than 10MB. Please choose a smaller file.',
-      docTypeError: 'Please choose a PDF, JPG or PNG file.',
+      docTypeError: 'Please choose a PDF, JPG, PNG or WebP file.',
       docUploadFailed: 'Could not read the document. Please try again.',
       docComplaintTitle: 'Have a complaint about this document?',
       docComplaintHint: 'Start a complaint draft with this document\'s details',
@@ -1066,6 +1500,7 @@ export const translations: Record<Language, Translations> = {
     },
     common: {
       undo: "Undo",
+      moreApps: "More apps",
       offline: "You're offline. KaamPe will work again once you reconnect.",
       error: 'Something went wrong. Please try again.',
       retry: 'Retry',
@@ -1194,6 +1629,215 @@ export const translations: Record<Language, Translations> = {
       notSent: 'KaamPe never sends this. Copy it and send it yourself.',
       fallbackNote: 'The AI was not available, so this simple draft uses only the details you gave.',
       invalidAmount: 'Enter a valid amount (more than 0, up to 2 decimals).',
+    },
+    theme: {
+      title: "Appearance",
+      system: "Match phone",
+      light: "Light",
+      dark: "Dark",
+      switchTo: "Change theme, now: {mode}",
+    },
+    access: {
+      title: "Listening help",
+      readPage: "Read this screen",
+      stopReading: "Stop reading",
+      autoRead: "Read replies aloud",
+      autoReadHint: "Every new KaamPe reply is spoken automatically.",
+      tapToHear: "Tap to hear",
+      tapToHearHint: "Tap any text on screen and KaamPe reads it out.",
+      speechRate: "Speaking speed",
+      rateSlow: "Slow",
+      rateNormal: "Normal",
+      rateFast: "Fast",
+      testVoice: "Test voice",
+      testVoiceSample: "Hello! I am KaamPe. Straight talk about your earnings, rights and help.",
+    },
+    demo: {
+      cardTitle: "Want a quick demo?",
+      cardText: "Explore the app with three weeks of a delivery rider’s ledger.",
+      tryDemo: "Open demo account",
+      loginTitle: "Log in to the demo account",
+      loginIntro: "This account comes pre-filled with sample earnings and expenses. Every login gets its own fresh copy.",
+      username: "Username",
+      password: "Password",
+      login: "Log in",
+      loggingIn: "Logging in…",
+      credsLabel: "Demo login: {username} / {password}",
+      fillCreds: "Fill demo details",
+      failed: "Could not log in. Please try again.",
+      welcome: "Demo account open. All data is sample data.",
+      badge: "Demo account",
+      logout: "Leave demo",
+      loggedOut: "Demo closed. A new empty account has started.",
+      adminLink: "Admin panel",
+    },
+    admin: {
+      title: "KaamPe Admin",
+      subtitle: "Usage at a glance (counts only, nothing personal)",
+      loginTitle: "Admin login",
+      login: "Log in",
+      loggingIn: "Logging in…",
+      logout: "Log out",
+      refresh: "Refresh",
+      updated: "Updated {time}",
+      loadFailed: "Could not load stats. Please try again.",
+      backToApp: "Back to app",
+      totalSessions: "Total users (sessions)",
+      active7d: "Active in last 7 days",
+      demoSessions: "Demo sessions",
+      moneyEntries: "Money entries",
+      earningsTracked: "Earnings tracked",
+      expensesTracked: "Expenses tracked",
+      conversations: "Conversations",
+      messages: "Messages",
+      documents: "Documents explained",
+      byWorker: "By type of work",
+      byState: "By state",
+      byLanguage: "By language",
+      activity: "Last 14 days",
+      newSessions: "New users",
+      entriesLogged: "Entries",
+      topics: "What people ask about",
+      recent: "Recent sessions",
+      colRef: "Ref",
+      colWho: "Who",
+      colEntries: "Entries",
+      colLastActive: "Last active",
+      demoTag: "demo",
+      none: "Nothing yet",
+      privacyNote: "No message text, notes or full session ids are shown here.",
+    },
+    insights: {
+      tipTitle: "Know your rights",
+      tipNext: "Next",
+      tipAsk: "Ask about this",
+      schemesTitle: "Schemes for you",
+      schemesHint: "Picked for your type of work. Confirm details on the official site.",
+      checkAll: "Check eligibility",
+      officialSite: "Official site",
+      weekTitle: "This week",
+      weekEarned: "{amount} earned",
+      bestDay: "Best day: {day}, {amount}",
+      activeDays: "Worked {count}/7 days",
+      weekEmpty: "No entries this week yet.",
+      rightsTab: "Your rights",
+      rightsTitle: "Work rights, in plain words",
+      rightsIntro: "Each topic is short. Listen to it, or ask KaamPe about your own situation.",
+      askAbout: "Ask KaamPe",
+      rightsNote: "This is general information, not legal advice. For a firm answer, talk to the labour office or 15100 (free legal aid).",
+      keyPoints: "Key points",
+    },
+    letter: {
+      nameLabel: 'Your name (to sign the letter)',
+      nameHint: 'Optional. Remembered only on this phone.',
+      englishTitle: 'English copy (for the company or office)',
+      englishHint: 'Built only from the facts you gave. Read it before sending.',
+    },
+    trust: {
+      aiNote: 'AI can make mistakes. Check important details on the official site or helpline.',
+      newTab: 'opens in a new tab',
+    },
+    moneyInsights: {
+      title: 'AI money insights',
+      intro: 'Short advice on your last 30 days of earnings and costs.',
+      get: 'Get insights',
+      getting: 'Looking…',
+      refresh: 'Refresh',
+      empty: 'Add some earnings or expenses first to get insights.',
+      tipsTitle: 'Ways to keep more',
+      warningTitle: 'Note',
+    },
+    work: {
+      title: 'Work details',
+      optional: 'optional',
+      tripsLabel: 'Deliveries / trips',
+      hoursLabel: 'Hours worked',
+      invalid: 'Use 0 to 1000 trips and up to 24 hours.',
+      perTrip: '{amount} per trip',
+      perHour: '{amount} per hour',
+      tripsShort: '{n} trips',
+      hoursShort: '{n} hrs',
+    },
+    autoSave: {
+      label: 'Save money from chat right away',
+      hint: 'When off, KaamPe asks before saving. When on, it saves at once and offers Undo.',
+      undone: 'Entry removed.',
+    },
+    stream: {
+      stop: 'Stop',
+      stopped: 'Answer stopped.',
+    },
+    safetyCoach: {
+      tab: 'Safety',
+      title: 'Safety coach',
+      intro: 'Pick a situation or describe it in your own words. KaamPe gives a short checklist.',
+      quickLabel: 'Quick picks',
+      situationLabel: 'What is happening?',
+      placeholder: 'E.g. a late-night delivery on an empty road',
+      get: 'Get safety steps',
+      getting: 'Getting steps…',
+      firstStep: 'Do this first',
+      helplinesTitle: 'Call if you need help',
+      situations: {
+        night: 'Working alone at night',
+        rain: 'Heavy rain or flooding',
+        heat: 'Extreme heat',
+        harassment: 'Someone is harassing or threatening me',
+        accident: 'Road accident',
+        otp: 'Someone is asking for my OTP or PIN',
+      },
+    },
+    auth: {
+      heroTitle: "Work, money and rights. In one place.",
+      heroText: "Delivery, driving, construction or domestic work: KaamPe keeps your earnings ledger, explains your rights and schemes, and helps you write complaints.",
+      featMoney: "Log earnings and expenses by voice",
+      featRights: "Your rights in plain words",
+      featSchemes: "Check government schemes",
+      featSafety: "Safety and SOS in one tap",
+      demoButton: "Try the demo in one click",
+      demoHint: "Comes with three weeks of sample data. No password needed.",
+      orDivider: "or sign in",
+      signInTab: "Sign in",
+      signUpTab: "New account",
+      username: "Username",
+      usernameHint: "3–32 characters: a-z, 0-9, _ or .",
+      password: "Password",
+      passwordHint: "At least 8 characters",
+      name: "Your name (optional)",
+      signIn: "Sign in",
+      signingIn: "Signing in…",
+      signUp: "Create account",
+      signingUp: "Creating account…",
+      guest: "Continue without an account",
+      guestHint: "Your data stays only in this phone’s session.",
+      invalidUsername: "Username must be 3–32 characters: a-z, 0-9, _ or .",
+      invalidPassword: "Password must be at least 8 characters.",
+      failed: "Could not sign in. Please try again.",
+      welcomeBack: "Welcome back!",
+      welcomeNew: "Account created. Now tell us about your work.",
+      logout: "Log out",
+      loggedOut: "You have logged out.",
+      signedInAs: "Signed in as {name}",
+      guestLabel: "No account",
+      adminOpening: "Opening the admin panel…",
+    },
+    tools: {
+      title: "Tools",
+      openMenu: "Open menu",
+      closeMenu: "Close menu",
+      assistant: "Assistant",
+      assistantDesc: "Ask anything",
+      schemes: "Schemes",
+      schemesDesc: "Which schemes fit you",
+      rights: "Your rights",
+      rightsDesc: "The law in plain words",
+      safety: "Safety",
+      safetyDesc: "Night, rain, fraud",
+      documents: "Documents",
+      documentsDesc: "Understand papers",
+      complaint: "Complaint",
+      complaintDesc: "Letters for pay disputes",
+      preferences: "Preferences",
     },
   },
   pa: {
@@ -1337,7 +1981,7 @@ export const translations: Record<Language, Translations> = {
       tabExplainDoc: 'ਦਸਤਾਵੇਜ਼ ਸਮਝੋ',
       tabDispute: 'ਪੇਮੈਂਟ ਵਿਵਾਦ ਵਿੱਚ ਮਦਦ',
       docUploadTitle: 'ਆਪਣਾ ਦਸਤਾਵੇਜ਼ ਅੱਪਲੋਡ ਕਰੋ',
-      docUploadDesc: 'ਰੇਟ ਕਾਰਡ, ਇਕਰਾਰਨਾਮਾ, ਚਲਾਨ (PDF, JPG, PNG - ਵੱਧ ਤੋਂ ਵੱਧ 10MB)',
+      docUploadDesc: 'ਰੇਟ ਕਾਰਡ, ਇਕਰਾਰਨਾਮਾ, ਚਲਾਨ (PDF, JPG, PNG, WebP - ਵੱਧ ਤੋਂ ਵੱਧ 10MB)',
       docUploadBtn: 'ਫਾਈਲ ਚੁਣੋ',
       docAnalyzing: 'ਦਸਤਾਵੇਜ਼ ਪੜ੍ਹਿਆ ਜਾ ਰਿਹਾ ਹੈ...',
       docWhatIsThis: 'ਇਹ ਦਸਤਾਵੇਜ਼ ਕੀ ਹੈ?',
@@ -1362,11 +2006,11 @@ export const translations: Record<Language, Translations> = {
       resultPlaceholderDispute: 'ਤੁਹਾਡਾ ਡਰਾਫਟ ਸੁਨੇਹਾ ਇੱਥੇ ਦਿਖੇਗਾ। ਤੁਸੀਂ ਇਸਨੂੰ ਬਦਲ ਕੇ ਕਾਪੀ ਕਰ ਸਕਦੇ ਹੋ।',
       tabSchemes: 'ਸਰਕਾਰੀ ਸਕੀਮਾਂ',
       tabListLabel: 'ਮਦਦ ਦੇ ਵਿਕਲਪ',
-      docFileHint: 'PDF, JPG, PNG (ਵੱਧ ਤੋਂ ਵੱਧ 10MB)',
+      docFileHint: 'PDF, JPG, PNG, WebP (ਵੱਧ ਤੋਂ ਵੱਧ 10MB)',
       docTakePhoto: 'ਕੈਮਰੇ ਨਾਲ ਫੋਟੋ ਲਓ',
       docSelected: 'ਚੁਣੀ ਗਈ ਫਾਈਲ: {name}',
       docTooLarge: 'ਫਾਈਲ 10MB ਤੋਂ ਵੱਡੀ ਹੈ। ਛੋਟੀ ਫਾਈਲ ਚੁਣੋ।',
-      docTypeError: 'ਸਿਰਫ਼ PDF, JPG ਜਾਂ PNG ਫਾਈਲ ਚੁਣੋ।',
+      docTypeError: 'ਸਿਰਫ਼ PDF, JPG, PNG ਜਾਂ WebP ਫਾਈਲ ਚੁਣੋ।',
       docUploadFailed: 'ਦਸਤਾਵੇਜ਼ ਪੜ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
       docComplaintTitle: 'ਕੀ ਇਸ ਦਸਤਾਵੇਜ਼ ਬਾਰੇ ਕੋਈ ਸ਼ਿਕਾਇਤ ਹੈ?',
       docComplaintHint: 'ਇਸ ਦਸਤਾਵੇਜ਼ ਦੀ ਜਾਣਕਾਰੀ ਨਾਲ ਸ਼ਿਕਾਇਤ ਦਾ ਡਰਾਫਟ ਸ਼ੁਰੂ ਕਰੋ',
@@ -1462,6 +2106,7 @@ export const translations: Record<Language, Translations> = {
     },
     common: {
       undo: "ਵਾਪਸ ਲਓ",
+      moreApps: "ਹੋਰ ਐਪਸ",
       offline: "ਇੰਟਰਨੈੱਟ ਨਹੀਂ ਹੈ। ਜੁੜਦੇ ਹੀ KaamPe ਫਿਰ ਚੱਲੇਗਾ।",
       error: 'ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
       retry: 'ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ',
@@ -1590,6 +2235,215 @@ export const translations: Record<Language, Translations> = {
       notSent: 'KaamPe ਇਹ ਸੁਨੇਹਾ ਆਪ ਨਹੀਂ ਭੇਜਦਾ। ਕਾਪੀ ਕਰਕੇ ਤੁਸੀਂ ਆਪ ਭੇਜੋ।',
       fallbackNote: 'AI ਹੁਣੇ ਉਪਲਬਧ ਨਹੀਂ ਸੀ, ਇਸ ਲਈ ਇਹ ਸਿੱਧਾ ਡਰਾਫਟ ਸਿਰਫ਼ ਤੁਹਾਡੀ ਦਿੱਤੀ ਜਾਣਕਾਰੀ ਤੋਂ ਬਣਿਆ ਹੈ।',
       invalidAmount: 'ਸਹੀ ਰਕਮ ਲਿਖੋ (0 ਤੋਂ ਵੱਧ, 2 ਦਸ਼ਮਲਵ ਤੱਕ)।',
+    },
+    theme: {
+      title: "ਰੰਗ (ਥੀਮ)",
+      system: "ਫ਼ੋਨ ਵਾਂਗ",
+      light: "ਦਿਨ (ਲਾਈਟ)",
+      dark: "ਰਾਤ (ਡਾਰਕ)",
+      switchTo: "ਥੀਮ ਬਦਲੋ, ਹੁਣ: {mode}",
+    },
+    access: {
+      title: "ਸੁਣਨ ਵਿੱਚ ਮਦਦ",
+      readPage: "ਇਹ ਸਕ੍ਰੀਨ ਸੁਣੋ",
+      stopReading: "ਪੜ੍ਹਨਾ ਰੋਕੋ",
+      autoRead: "ਜਵਾਬ ਆਪੇ ਸੁਣਾਓ",
+      autoReadHint: "KaamPe ਦਾ ਹਰ ਨਵਾਂ ਜਵਾਬ ਆਪੇ ਬੋਲ ਕੇ ਸੁਣਾਇਆ ਜਾਵੇਗਾ।",
+      tapToHear: "ਛੂਹ ਕੇ ਸੁਣੋ",
+      tapToHearHint: "ਸਕ੍ਰੀਨ 'ਤੇ ਕੋਈ ਵੀ ਲਿਖਤ ਛੂਹੋ, KaamPe ਉਸਨੂੰ ਪੜ੍ਹ ਕੇ ਸੁਣਾਏਗਾ।",
+      speechRate: "ਬੋਲਣ ਦੀ ਰਫ਼ਤਾਰ",
+      rateSlow: "ਹੌਲੀ",
+      rateNormal: "ਆਮ",
+      rateFast: "ਤੇਜ਼",
+      testVoice: "ਆਵਾਜ਼ ਜਾਂਚੋ",
+      testVoiceSample: "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ KaamPe ਹਾਂ। ਤੁਹਾਡੀ ਕਮਾਈ, ਹੱਕ ਅਤੇ ਮਦਦ ਦੀ ਗੱਲ ਸਿੱਧੀ ਭਾਸ਼ਾ ਵਿੱਚ।",
+    },
+    demo: {
+      cardTitle: "ਡੈਮੋ ਵੇਖਣਾ ਹੈ?",
+      cardText: "ਇੱਕ ਡਿਲਿਵਰੀ ਰਾਈਡਰ ਦੇ 3 ਹਫ਼ਤਿਆਂ ਦੇ ਹਿਸਾਬ ਨਾਲ ਐਪ ਚਲਾ ਕੇ ਵੇਖੋ।",
+      tryDemo: "ਡੈਮੋ ਖਾਤਾ ਖੋਲ੍ਹੋ",
+      loginTitle: "ਡੈਮੋ ਖਾਤੇ ਵਿੱਚ ਲੌਗਇਨ",
+      loginIntro: "ਇਸ ਖਾਤੇ ਵਿੱਚ ਪਹਿਲਾਂ ਤੋਂ ਨਮੂਨਾ ਕਮਾਈ ਅਤੇ ਖਰਚੇ ਭਰੇ ਹਨ। ਹਰ ਲੌਗਇਨ ਨੂੰ ਨਵੀਂ, ਵੱਖਰੀ ਕਾਪੀ ਮਿਲਦੀ ਹੈ।",
+      username: "ਯੂਜ਼ਰਨੇਮ",
+      password: "ਪਾਸਵਰਡ",
+      login: "ਲੌਗਇਨ ਕਰੋ",
+      loggingIn: "ਲੌਗਇਨ ਹੋ ਰਿਹਾ ਹੈ…",
+      credsLabel: "ਡੈਮੋ ਲੌਗਇਨ: {username} / {password}",
+      fillCreds: "ਡੈਮੋ ਵੇਰਵੇ ਭਰੋ",
+      failed: "ਲੌਗਇਨ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+      welcome: "ਡੈਮੋ ਖਾਤਾ ਖੁੱਲ੍ਹ ਗਿਆ। ਸਾਰਾ ਡਾਟਾ ਨਮੂਨਾ ਹੈ।",
+      badge: "ਡੈਮੋ ਖਾਤਾ",
+      logout: "ਡੈਮੋ ਤੋਂ ਬਾਹਰ ਨਿਕਲੋ",
+      loggedOut: "ਡੈਮੋ ਬੰਦ। ਨਵਾਂ ਖਾਲੀ ਖਾਤਾ ਸ਼ੁਰੂ ਹੋਇਆ।",
+      adminLink: "ਐਡਮਿਨ ਪੈਨਲ",
+    },
+    admin: {
+      title: "KaamPe ਐਡਮਿਨ",
+      subtitle: "ਵਰਤੋਂ ਦੇ ਅੰਕੜੇ (ਸਿਰਫ਼ ਗਿਣਤੀ, ਕੋਈ ਨਿੱਜੀ ਗੱਲ ਨਹੀਂ)",
+      loginTitle: "ਐਡਮਿਨ ਲੌਗਇਨ",
+      login: "ਲੌਗਇਨ ਕਰੋ",
+      loggingIn: "ਲੌਗਇਨ ਹੋ ਰਿਹਾ ਹੈ…",
+      logout: "ਲੌਗਆਊਟ",
+      refresh: "ਤਾਜ਼ਾ ਕਰੋ",
+      updated: "{time} 'ਤੇ ਅੱਪਡੇਟ",
+      loadFailed: "ਅੰਕੜੇ ਲੋਡ ਨਹੀਂ ਹੋਏ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+      backToApp: "ਐਪ 'ਤੇ ਵਾਪਸ",
+      totalSessions: "ਕੁੱਲ ਯੂਜ਼ਰ (ਸੈਸ਼ਨ)",
+      active7d: "ਪਿਛਲੇ 7 ਦਿਨ ਸਰਗਰਮ",
+      demoSessions: "ਡੈਮੋ ਸੈਸ਼ਨ",
+      moneyEntries: "ਪੈਸਿਆਂ ਦੀਆਂ ਐਂਟਰੀਆਂ",
+      earningsTracked: "ਕੁੱਲ ਕਮਾਈ ਦਰਜ",
+      expensesTracked: "ਕੁੱਲ ਖਰਚਾ ਦਰਜ",
+      conversations: "ਗੱਲਬਾਤ",
+      messages: "ਸੁਨੇਹੇ",
+      documents: "ਸਮਝਾਏ ਦਸਤਾਵੇਜ਼",
+      byWorker: "ਕੰਮ ਦੇ ਹਿਸਾਬ ਨਾਲ",
+      byState: "ਰਾਜ ਦੇ ਹਿਸਾਬ ਨਾਲ",
+      byLanguage: "ਭਾਸ਼ਾ ਦੇ ਹਿਸਾਬ ਨਾਲ",
+      activity: "ਪਿਛਲੇ 14 ਦਿਨ",
+      newSessions: "ਨਵੇਂ ਯੂਜ਼ਰ",
+      entriesLogged: "ਐਂਟਰੀਆਂ",
+      topics: "ਲੋਕ ਕੀ ਪੁੱਛ ਰਹੇ ਹਨ",
+      recent: "ਹਾਲੀਆ ਸੈਸ਼ਨ",
+      colRef: "ਹਵਾਲਾ",
+      colWho: "ਕੌਣ",
+      colEntries: "ਐਂਟਰੀਆਂ",
+      colLastActive: "ਆਖਰੀ ਵਾਰ",
+      demoTag: "ਡੈਮੋ",
+      none: "ਹਾਲੇ ਕੁਝ ਨਹੀਂ",
+      privacyNote: "ਇੱਥੇ ਕਿਸੇ ਦਾ ਸੁਨੇਹਾ, ਨੋਟ ਜਾਂ ਪੂਰਾ ਸੈਸ਼ਨ ID ਨਹੀਂ ਵਿਖਾਇਆ ਜਾਂਦਾ।",
+    },
+    insights: {
+      tipTitle: "ਆਪਣਾ ਹੱਕ ਜਾਣੋ",
+      tipNext: "ਅਗਲਾ",
+      tipAsk: "ਇਸ ਬਾਰੇ ਪੁੱਛੋ",
+      schemesTitle: "ਤੁਹਾਡੇ ਲਈ ਸਕੀਮਾਂ",
+      schemesHint: "ਤੁਹਾਡੇ ਕੰਮ ਦੇ ਹਿਸਾਬ ਨਾਲ। ਪੱਕੀ ਜਾਣਕਾਰੀ ਸਰਕਾਰੀ ਸਾਈਟ 'ਤੇ ਵੇਖੋ।",
+      checkAll: "ਯੋਗਤਾ ਜਾਂਚੋ",
+      officialSite: "ਸਰਕਾਰੀ ਸਾਈਟ",
+      weekTitle: "ਇਸ ਹਫ਼ਤੇ",
+      weekEarned: "{amount} ਕਮਾਏ",
+      bestDay: "ਸਭ ਤੋਂ ਵਧੀਆ ਦਿਨ: {day}, {amount}",
+      activeDays: "{count}/7 ਦਿਨ ਕੰਮ ਕੀਤਾ",
+      weekEmpty: "ਇਸ ਹਫ਼ਤੇ ਹਾਲੇ ਕੋਈ ਐਂਟਰੀ ਨਹੀਂ।",
+      rightsTab: "ਤੁਹਾਡੇ ਹੱਕ",
+      rightsTitle: "ਕੰਮ ਦੇ ਹੱਕ, ਸੌਖੀ ਭਾਸ਼ਾ ਵਿੱਚ",
+      rightsIntro: "ਹਰ ਵਿਸ਼ਾ ਛੋਟਾ ਹੈ। ਸੁਣੋ, ਜਾਂ KaamPe ਨੂੰ ਆਪਣੀ ਹਾਲਤ ਬਾਰੇ ਪੁੱਛੋ।",
+      askAbout: "KaamPe ਨੂੰ ਪੁੱਛੋ",
+      rightsNote: "ਇਹ ਆਮ ਜਾਣਕਾਰੀ ਹੈ, ਕਾਨੂੰਨੀ ਸਲਾਹ ਨਹੀਂ। ਪੱਕੀ ਗੱਲ ਲਈ ਲੇਬਰ ਦਫ਼ਤਰ ਜਾਂ 15100 (ਮੁਫ਼ਤ ਕਾਨੂੰਨੀ ਮਦਦ) ਨਾਲ ਗੱਲ ਕਰੋ।",
+      keyPoints: "ਜ਼ਰੂਰੀ ਗੱਲਾਂ",
+    },
+    letter: {
+      nameLabel: 'ਤੁਹਾਡਾ ਨਾਮ (ਚਿੱਠੀ ਦੇ ਹੇਠਾਂ)',
+      nameHint: 'ਜ਼ਰੂਰੀ ਨਹੀਂ। ਸਿਰਫ਼ ਇਸੇ ਫ਼ੋਨ \'ਤੇ ਯਾਦ ਰਹਿੰਦਾ ਹੈ।',
+      englishTitle: 'ਅੰਗਰੇਜ਼ੀ ਕਾਪੀ (ਕੰਪਨੀ ਜਾਂ ਦਫ਼ਤਰ ਲਈ)',
+      englishHint: 'ਸਿਰਫ਼ ਤੁਹਾਡੀਆਂ ਦੱਸੀਆਂ ਗੱਲਾਂ ਤੋਂ ਬਣੀ ਹੈ। ਭੇਜਣ ਤੋਂ ਪਹਿਲਾਂ ਪੜ੍ਹ ਲਓ।',
+    },
+    trust: {
+      aiNote: 'AI ਗਲਤੀ ਕਰ ਸਕਦਾ ਹੈ। ਜ਼ਰੂਰੀ ਗੱਲ ਸਰਕਾਰੀ ਸਾਈਟ ਜਾਂ ਹੈਲਪਲਾਈਨ ਤੋਂ ਪੱਕੀ ਕਰੋ।',
+      newTab: 'ਨਵੀਂ ਟੈਬ ਵਿੱਚ ਖੁੱਲ੍ਹੇਗਾ',
+    },
+    moneyInsights: {
+      title: 'AI ਨਾਲ ਹਿਸਾਬ ਸਮਝੋ',
+      intro: 'ਪਿਛਲੇ 30 ਦਿਨਾਂ ਦੀ ਕਮਾਈ ਅਤੇ ਖਰਚ ਬਾਰੇ ਛੋਟੀ ਸਲਾਹ।',
+      get: 'ਸਲਾਹ ਲਓ',
+      getting: 'ਦੇਖ ਰਹੇ ਹਾਂ…',
+      refresh: 'ਦੁਬਾਰਾ ਦੇਖੋ',
+      empty: 'ਸਲਾਹ ਲਈ ਪਹਿਲਾਂ ਕੁਝ ਕਮਾਈ ਜਾਂ ਖਰਚ ਜੋੜੋ।',
+      tipsTitle: 'ਬਚਤ ਵਧਾਉਣ ਦੇ ਤਰੀਕੇ',
+      warningTitle: 'ਧਿਆਨ ਦਿਓ',
+    },
+    work: {
+      title: 'ਕੰਮ ਦੀ ਜਾਣਕਾਰੀ',
+      optional: 'ਜ਼ਰੂਰੀ ਨਹੀਂ',
+      tripsLabel: 'ਕਿੰਨੀਆਂ ਡਿਲੀਵਰੀ / ਟ੍ਰਿਪ',
+      hoursLabel: 'ਕਿੰਨੇ ਘੰਟੇ',
+      invalid: 'ਟ੍ਰਿਪ 0 ਤੋਂ 1000 ਤੱਕ ਅਤੇ ਘੰਟੇ 24 ਤੱਕ ਲਿਖੋ।',
+      perTrip: '{amount} ਹਰ ਟ੍ਰਿਪ',
+      perHour: '{amount} ਹਰ ਘੰਟਾ',
+      tripsShort: '{n} ਟ੍ਰਿਪ',
+      hoursShort: '{n} ਘੰਟੇ',
+    },
+    autoSave: {
+      label: 'ਚੈਟ ਤੋਂ ਪੈਸਾ ਸਿੱਧਾ ਸੇਵ ਕਰੋ',
+      hint: 'ਬੰਦ ਹੋਵੇ ਤਾਂ ਹਰ ਵਾਰ ਪਹਿਲਾਂ ਪੁੱਛਿਆ ਜਾਂਦਾ ਹੈ। ਚਾਲੂ ਹੋਵੇ ਤਾਂ ਤੁਰੰਤ ਸੇਵ ਹੁੰਦਾ ਹੈ ਅਤੇ ਵਾਪਸ ਲੈਣ ਦਾ ਵਿਕਲਪ ਮਿਲਦਾ ਹੈ।',
+      undone: 'ਐਂਟਰੀ ਹਟਾ ਦਿੱਤੀ ਗਈ।',
+    },
+    stream: {
+      stop: 'ਰੋਕੋ',
+      stopped: 'ਜਵਾਬ ਰੋਕ ਦਿੱਤਾ ਗਿਆ।',
+    },
+    safetyCoach: {
+      tab: 'ਸੁਰੱਖਿਆ',
+      title: 'ਸੁਰੱਖਿਆ ਸਲਾਹ',
+      intro: 'ਹਾਲਾਤ ਚੁਣੋ ਜਾਂ ਆਪਣੇ ਸ਼ਬਦਾਂ ਵਿੱਚ ਦੱਸੋ। KaamPe ਛੋਟੀ ਚੈੱਕਲਿਸਟ ਦੇਵੇਗਾ।',
+      quickLabel: 'ਜਲਦੀ ਚੁਣੋ',
+      situationLabel: 'ਕੀ ਹੋ ਰਿਹਾ ਹੈ?',
+      placeholder: 'ਜਿਵੇਂ: ਰਾਤ ਨੂੰ ਸੁੰਨਸਾਨ ਸੜਕ \'ਤੇ ਡਿਲੀਵਰੀ ਹੈ',
+      get: 'ਸੁਰੱਖਿਆ ਕਦਮ ਲਓ',
+      getting: 'ਕਦਮ ਬਣ ਰਹੇ ਹਨ…',
+      firstStep: 'ਸਭ ਤੋਂ ਪਹਿਲਾਂ',
+      helplinesTitle: 'ਲੋੜ ਹੋਵੇ ਤਾਂ ਕਾਲ ਕਰੋ',
+      situations: {
+        night: 'ਰਾਤ ਨੂੰ ਇਕੱਲੇ ਕੰਮ',
+        rain: 'ਤੇਜ਼ ਮੀਂਹ ਜਾਂ ਪਾਣੀ ਭਰਿਆ',
+        heat: 'ਬਹੁਤ ਗਰਮੀ / ਲੂ',
+        harassment: 'ਕੋਈ ਤੰਗ ਕਰ ਰਿਹਾ ਜਾਂ ਧਮਕਾ ਰਿਹਾ ਹੈ',
+        accident: 'ਸੜਕ ਹਾਦਸਾ',
+        otp: 'ਕੋਈ OTP ਜਾਂ PIN ਮੰਗ ਰਿਹਾ ਹੈ',
+      },
+    },
+    auth: {
+      heroTitle: "ਕੰਮ, ਪੈਸਾ ਅਤੇ ਹੱਕ। ਇੱਕ ਥਾਂ।",
+      heroText: "ਡਿਲਿਵਰੀ, ਡਰਾਈਵਿੰਗ, ਉਸਾਰੀ ਜਾਂ ਘਰੇਲੂ ਕੰਮ: KaamPe ਤੁਹਾਡੀ ਕਮਾਈ ਦਾ ਹਿਸਾਬ ਰੱਖਦਾ ਹੈ, ਹੱਕ ਅਤੇ ਸਕੀਮਾਂ ਸਮਝਾਉਂਦਾ ਹੈ, ਅਤੇ ਸ਼ਿਕਾਇਤ ਲਿਖਣ ਵਿੱਚ ਮਦਦ ਕਰਦਾ ਹੈ।",
+      featMoney: "ਬੋਲ ਕੇ ਕਮਾਈ ਅਤੇ ਖਰਚਾ ਲਿਖੋ",
+      featRights: "ਆਪਣੇ ਹੱਕ ਸੌਖੀ ਭਾਸ਼ਾ ਵਿੱਚ",
+      featSchemes: "ਸਰਕਾਰੀ ਸਕੀਮਾਂ ਦੀ ਜਾਂਚ",
+      featSafety: "ਸੁਰੱਖਿਆ ਅਤੇ SOS ਇੱਕ ਟੈਪ 'ਤੇ",
+      demoButton: "ਡੈਮੋ ਵੇਖੋ, ਇੱਕ ਕਲਿੱਕ ਵਿੱਚ",
+      demoHint: "3 ਹਫ਼ਤਿਆਂ ਦੇ ਨਮੂਨਾ ਹਿਸਾਬ ਨਾਲ। ਕੋਈ ਪਾਸਵਰਡ ਨਹੀਂ।",
+      orDivider: "ਜਾਂ ਲੌਗਇਨ ਕਰੋ",
+      signInTab: "ਲੌਗਇਨ",
+      signUpTab: "ਨਵਾਂ ਖਾਤਾ",
+      username: "ਯੂਜ਼ਰਨੇਮ",
+      usernameHint: "3-32 ਅੱਖਰ: a-z, 0-9, _ ਜਾਂ .",
+      password: "ਪਾਸਵਰਡ",
+      passwordHint: "ਘੱਟੋ-ਘੱਟ 8 ਅੱਖਰ",
+      name: "ਤੁਹਾਡਾ ਨਾਂ (ਲਾਜ਼ਮੀ ਨਹੀਂ)",
+      signIn: "ਲੌਗਇਨ ਕਰੋ",
+      signingIn: "ਲੌਗਇਨ ਹੋ ਰਿਹਾ ਹੈ…",
+      signUp: "ਖਾਤਾ ਬਣਾਓ",
+      signingUp: "ਖਾਤਾ ਬਣ ਰਿਹਾ ਹੈ…",
+      guest: "ਬਿਨਾਂ ਖਾਤੇ ਅੱਗੇ ਵਧੋ",
+      guestHint: "ਡਾਟਾ ਸਿਰਫ਼ ਇਸ ਫ਼ੋਨ ਦੇ ਸੈਸ਼ਨ ਵਿੱਚ ਰਹੇਗਾ।",
+      invalidUsername: "ਯੂਜ਼ਰਨੇਮ 3-32 ਅੱਖਰਾਂ ਦਾ ਹੋਵੇ: a-z, 0-9, _ ਜਾਂ .",
+      invalidPassword: "ਪਾਸਵਰਡ ਘੱਟੋ-ਘੱਟ 8 ਅੱਖਰਾਂ ਦਾ ਹੋਵੇ।",
+      failed: "ਲੌਗਇਨ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+      welcomeBack: "ਵਾਪਸ ਆਉਣ 'ਤੇ ਜੀ ਆਇਆਂ ਨੂੰ!",
+      welcomeNew: "ਖਾਤਾ ਬਣ ਗਿਆ। ਹੁਣ ਆਪਣੇ ਕੰਮ ਬਾਰੇ ਦੱਸੋ।",
+      logout: "ਲੌਗਆਊਟ",
+      loggedOut: "ਤੁਸੀਂ ਲੌਗਆਊਟ ਹੋ ਗਏ।",
+      signedInAs: "{name} ਵਜੋਂ",
+      guestLabel: "ਬਿਨਾਂ ਖਾਤਾ",
+      adminOpening: "ਐਡਮਿਨ ਪੈਨਲ ਖੁੱਲ੍ਹ ਰਿਹਾ ਹੈ…",
+    },
+    tools: {
+      title: "ਟੂਲ",
+      openMenu: "ਮੀਨੂ ਖੋਲ੍ਹੋ",
+      closeMenu: "ਮੀਨੂ ਬੰਦ ਕਰੋ",
+      assistant: "ਸਹਾਇਕ",
+      assistantDesc: "ਕੁਝ ਵੀ ਪੁੱਛੋ",
+      schemes: "ਸਕੀਮਾਂ",
+      schemesDesc: "ਕਿਹੜੀ ਸਕੀਮ ਤੁਹਾਡੇ ਲਈ",
+      rights: "ਤੁਹਾਡੇ ਹੱਕ",
+      rightsDesc: "ਕਾਨੂੰਨ ਸੌਖੀ ਭਾਸ਼ਾ ਵਿੱਚ",
+      safety: "ਸੁਰੱਖਿਆ",
+      safetyDesc: "ਰਾਤ, ਮੀਂਹ, ਧੋਖਾ",
+      documents: "ਦਸਤਾਵੇਜ਼",
+      documentsDesc: "ਕਾਗਜ਼ ਸਮਝੋ",
+      complaint: "ਸ਼ਿਕਾਇਤ",
+      complaintDesc: "ਭੁਗਤਾਨ ਝਗੜੇ ਦੀ ਚਿੱਠੀ",
+      preferences: "ਪਸੰਦ",
     },
   },
 };

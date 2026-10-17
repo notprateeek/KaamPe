@@ -7,3 +7,6 @@ uploads_tmp/
 test-results/
 playwright-report/
 .DS_Store
+.vercel
+coverage/
+api/

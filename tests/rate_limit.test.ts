@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
-import express from 'express';
 import { createRateLimiter } from '../server/middleware/rateLimit';
 import { createApp } from '../server/index';
 import { loadEnv } from '../server/config/env';

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Download, PenLine, Send } from 'lucide-react';
+import { ChevronDown, Download, PenLine, Send } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -7,6 +7,16 @@ import { Input } from '../../components/ui/Input';
 import { VoiceInputButton } from '../../components/voice/VoiceInputButton';
 import { ReadAloudButton, actionButtonClass } from '../../components/speech/ReadAloudButton';
 import { CopyButton } from '../../components/speech/CopyButton';
+import { safeGetItem, safeSetItem } from '../../lib/storage';
+import { MAX_AMOUNT_RUPEES, MAX_GRIEVANCE_CONTEXT_CHARS, MAX_GRIEVANCE_DESCRIPTION_CHARS } from '../../../shared/grievance';
+
+const NAME_KEY = 'kaampe_letter_name';
+
+/** Adds the worker's name as the sign-off, if they gave one. */
+export function withSignature(text: string, name: string): string {
+  const clean = name.replace(/\s+/g, ' ').trim();
+  return clean ? `${text.trimEnd()}\n\n${clean}` : text;
+}
 
 export type GrievanceField = 'amount' | 'duration';
 type DurationUnit = 'days' | 'weeks' | 'months';
@@ -40,9 +50,28 @@ export interface GrievanceDraftResponse {
   draftMessage: string;
   facts?: GrievanceFacts;
   usedFallback?: boolean;
+  /** Fact-only English version of a hi/pa draft. */
+  englishDraft?: string;
 }
 
 type Turn = { role: 'kaampe' | 'worker'; text: string };
+type Stage = 'questions' | 'drafting' | 'draft' | 'draft_failed';
+type DraftRequest = { facts: GrievanceFacts; unknown: GrievanceField[] };
+
+/** Everything the worker has done so far, so the card can be restored after it unmounts (e.g. a tab switch). */
+export interface GrievanceSnapshot {
+  turns: Turn[];
+  questions: Array<{ field: GrievanceField; text: string }>;
+  facts: GrievanceFacts;
+  unknown: GrievanceField[];
+  summary: string;
+  draft: string;
+  usedFallback: boolean;
+  englishDraft: string;
+  stage: Stage;
+  /** The last draft request, kept for Retry and to resume a draft interrupted by unmounting. */
+  pending: DraftRequest | null;
+}
 
 const MAX_ANSWER_CHARS = 500;
 const AMOUNT_RE = /^\d{1,8}(\.\d{1,2})?$/;
@@ -67,20 +96,31 @@ export const GuidedGrievance: React.FC<{
   initial: GrievanceGuideResponse | GrievanceDraftResponse;
   /** Unique prefix for element ids. */
   idPrefix: string;
-}> = ({ description, draftContext, initial, idPrefix }) => {
+  /** Saved progress from an earlier mount; takes precedence over `initial`. */
+  snapshot?: GrievanceSnapshot;
+  /** Called whenever progress changes, so the parent can keep it across unmounts. */
+  onSnapshot?: (snapshot: GrievanceSnapshot) => void;
+}> = ({ description, draftContext, initial, idPrefix, snapshot, onSnapshot }) => {
   const { t, profile } = useApp();
   const [turns, setTurns] = useState<Turn[]>(() =>
-    initial.type === 'grievance_guide' && initial.stage === 'questions' ? [{ role: 'kaampe', text: initial.message }] : []
+    snapshot
+      ? snapshot.turns
+      : initial.type === 'grievance_guide' && initial.stage === 'questions'
+        ? [{ role: 'kaampe', text: initial.message }]
+        : []
   );
-  const [questions, setQuestions] = useState(initial.type === 'grievance_guide' ? initial.questions : []);
-  const [facts, setFacts] = useState<GrievanceFacts>(initial.facts ?? {});
-  const [unknown, setUnknown] = useState<GrievanceField[]>(initial.type === 'grievance_guide' ? initial.unknown : []);
-  const [summary, setSummary] = useState(initial.summary);
-  const [draft, setDraft] = useState(initial.type === 'grievance' ? initial.draftMessage : '');
-  const [usedFallback, setUsedFallback] = useState(initial.type === 'grievance' ? !!initial.usedFallback : false);
-  const [stage, setStage] = useState<'questions' | 'drafting' | 'draft'>(
-    initial.type === 'grievance' ? 'draft' : initial.stage === 'questions' ? 'questions' : 'drafting'
+  const [questions, setQuestions] = useState(snapshot?.questions ?? (initial.type === 'grievance_guide' ? initial.questions : []));
+  const [facts, setFacts] = useState<GrievanceFacts>(snapshot?.facts ?? initial.facts ?? {});
+  const [unknown, setUnknown] = useState<GrievanceField[]>(snapshot?.unknown ?? (initial.type === 'grievance_guide' ? initial.unknown : []));
+  const [summary, setSummary] = useState(snapshot?.summary ?? initial.summary);
+  const [draft, setDraft] = useState(snapshot?.draft ?? (initial.type === 'grievance' ? initial.draftMessage : ''));
+  const [usedFallback, setUsedFallback] = useState(snapshot?.usedFallback ?? (initial.type === 'grievance' ? !!initial.usedFallback : false));
+  const [englishDraft, setEnglishDraft] = useState(snapshot?.englishDraft ?? (initial.type === 'grievance' ? initial.englishDraft ?? '' : ''));
+  const [name, setName] = useState(() => safeGetItem(NAME_KEY) ?? '');
+  const [stage, setStage] = useState<Stage>(
+    snapshot?.stage ?? (initial.type === 'grievance' ? 'draft' : initial.stage === 'questions' ? 'questions' : 'drafting')
   );
+  const [pending, setPending] = useState<DraftRequest | null>(snapshot?.pending ?? null);
   const [answer, setAnswer] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,28 +143,49 @@ export const GuidedGrievance: React.FC<{
     setBusy(true);
     setError(null);
     setStage('drafting');
+    setPending({ facts: confirmed, unknown: unknownFields });
     try {
-      const full = draftContext ? `${description}\n\n${draftContext}` : description;
-      const data = (await post({ action: 'draft', description: full, facts: confirmed, unknown: unknownFields })) as GrievanceDraftResponse;
+      // Evidence goes in its own field so it never pushes the description past the server limit.
+      const context = draftContext?.trim().slice(0, MAX_GRIEVANCE_CONTEXT_CHARS);
+      const data = (await post({
+        action: 'draft',
+        description: description.slice(0, MAX_GRIEVANCE_DESCRIPTION_CHARS),
+        ...(context ? { context } : {}),
+        facts: confirmed,
+        unknown: unknownFields,
+      })) as GrievanceDraftResponse;
       setSummary(data.summary);
       setDraft(data.draftMessage);
       setFacts(data.facts ?? confirmed);
       setUsedFallback(!!data.usedFallback);
+      setEnglishDraft(data.englishDraft ?? '');
       setStage('draft');
       setEditing(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.common.error);
-      setStage(draft ? 'draft' : 'questions');
+      // With no earlier draft to fall back to, offer a retry instead of an empty card.
+      setStage(draft ? 'draft' : 'draft_failed');
     } finally {
       setBusy(false);
     }
   };
 
-  // Facts were already complete: write the draft straight away.
   useEffect(() => {
+    // Restored mid-draft: the earlier request's reply was lost on unmount, so ask again.
+    if (snapshot) {
+      if (snapshot.stage === 'drafting' && snapshot.pending) void createDraft(snapshot.pending.facts, snapshot.pending.unknown);
+      return;
+    }
+    // Facts were already complete: write the draft straight away.
     if (initial.type === 'grievance_guide' && initial.stage === 'review') void createDraft(initial.facts, initial.unknown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const onSnapshotRef = useRef(onSnapshot);
+  onSnapshotRef.current = onSnapshot;
+  useEffect(() => {
+    onSnapshotRef.current?.({ turns, questions, facts, unknown, summary, draft, usedFallback, englishDraft, stage, pending });
+  }, [turns, questions, facts, unknown, summary, draft, usedFallback, englishDraft, stage, pending]);
 
   const sendAnswer = async (dontKnow: boolean) => {
     const text = dontKnow ? t.grievance.dontKnow : answer.trim();
@@ -162,8 +223,12 @@ export const GuidedGrievance: React.FC<{
     }
   };
 
+  const signed = withSignature(draft, name);
+  const signedEnglish = englishDraft ? withSignature(englishDraft, name) : '';
+
   const handleDownload = () => {
-    const blob = new Blob([draft], { type: 'text/plain;charset=utf-8' });
+    const text = signedEnglish ? `${signed}\n\n---\n\n${signedEnglish}` : signed;
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -183,7 +248,7 @@ export const GuidedGrievance: React.FC<{
             <li key={i} className={`flex ${turn.role === 'worker' ? 'justify-end' : 'justify-start'}`}>
               <div
                 className={`max-w-[90%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-line ${
-                  turn.role === 'worker' ? 'bg-ink text-white rounded-tr-sm' : 'bg-surface-1 border border-hairline text-ink rounded-tl-sm'
+                  turn.role === 'worker' ? 'bg-ink text-inverse rounded-tr-sm' : 'bg-surface-1 border border-hairline text-ink rounded-tl-sm'
                 }`}
               >
                 <span className="sr-only">{turn.role === 'worker' ? t.grievance.you : t.grievance.kaampe}: </span>
@@ -249,6 +314,12 @@ export const GuidedGrievance: React.FC<{
         </p>
       )}
 
+      {stage === 'draft_failed' && pending && (
+        <Button type="button" variant="secondary" size="md" onClick={() => void createDraft(pending.facts, pending.unknown)}>
+          {t.common.retry}
+        </Button>
+      )}
+
       {stage === 'draft' && (
         <>
           <Card className="bg-surface-2 border border-hairline-soft p-3.5 space-y-2">
@@ -296,14 +367,45 @@ export const GuidedGrievance: React.FC<{
               {t.grievance.notSent}
               {usedFallback ? ` ${t.grievance.fallbackNote}` : ''}
             </p>
+            <div className="mt-3">
+              <Input
+                id={`${idPrefix}-name`}
+                label={t.letter.nameLabel}
+                helperText={t.letter.nameHint}
+                autoComplete="name"
+                maxLength={80}
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  safeSetItem(NAME_KEY, e.target.value.trim());
+                }}
+              />
+            </div>
             <div className="flex flex-wrap items-center gap-2 mt-3">
-              <CopyButton text={draft} label={t.help.copy} copiedLabel={t.help.copied} />
-              <ReadAloudButton text={draft} />
+              <CopyButton text={signed} label={t.help.copy} copiedLabel={t.help.copied} />
+              <ReadAloudButton text={signed} />
               <button type="button" onClick={handleDownload} className={actionButtonClass}>
                 <Download className="w-4 h-4" aria-hidden="true" />
                 <span>{t.help.downloadTxt}</span>
               </button>
             </div>
+
+            {signedEnglish && (
+              <details className="mt-4 rounded-xl border border-hairline-soft bg-surface-2 group">
+                <summary className="cursor-pointer list-none min-h-[44px] flex items-center justify-between gap-2 px-3 text-sm font-semibold text-ink rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                  {t.letter.englishTitle}
+                  <ChevronDown className="w-4 h-4 text-ink-muted transition-transform group-open:rotate-180" aria-hidden="true" />
+                </summary>
+                <div className="px-3 pb-3 space-y-2">
+                  <p className="text-[11px] text-ink-muted">{t.letter.englishHint}</p>
+                  <p lang="en" className="text-sm text-ink leading-relaxed whitespace-pre-line">{signedEnglish}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CopyButton text={signedEnglish} label={t.help.copy} copiedLabel={t.help.copied} />
+                    <ReadAloudButton text={signedEnglish} lang="en" />
+                  </div>
+                </div>
+              </details>
+            )}
           </Card>
         </>
       )}
@@ -330,7 +432,7 @@ const FactsEditor: React.FC<{
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanAmount = amount.trim().replace(/,/g, '');
-    if (cleanAmount && (!AMOUNT_RE.test(cleanAmount) || Number(cleanAmount) <= 0)) {
+    if (cleanAmount && (!AMOUNT_RE.test(cleanAmount) || Number(cleanAmount) <= 0 || Number(cleanAmount) > MAX_AMOUNT_RUPEES)) {
       setAmountError(t.grievance.invalidAmount);
       return;
     }

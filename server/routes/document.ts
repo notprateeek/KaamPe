@@ -25,7 +25,7 @@ const __dirname = path.dirname(__filename);
 const router = Router();
 
 // Secure temporary uploads folder
-const uploadDir = path.resolve(__dirname, '../../uploads_tmp');
+const uploadDir = process.env.VERCEL ? '/tmp/uploads_tmp' : path.resolve(__dirname, '../../uploads_tmp');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -53,8 +53,8 @@ const upload = multer({
     parts: 6,
   },
   fileFilter: (req, file, cb) => {
-    const allowedMime = ['application/pdf', 'image/jpeg', 'image/png'];
-    const allowedExt = ['.pdf', '.jpg', '.jpeg', '.png'];
+    const allowedMime = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    const allowedExt = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
     const ext = path.extname(file.originalname).toLowerCase();
 
     if (!allowedMime.includes(file.mimetype) || !allowedExt.includes(ext)) {
@@ -91,7 +91,10 @@ const SIGNATURES: Record<string, Buffer[]> = {
   'application/pdf': [Buffer.from('%PDF-', 'ascii')],
   'image/png': [Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
   'image/jpeg': [Buffer.from([0xff, 0xd8, 0xff])],
+  // "RIFF", then 4 size bytes; the "WEBP" form type at offset 8 is checked below.
+  'image/webp': [Buffer.from('RIFF', 'ascii')],
 };
+const WEBP_FORM = Buffer.from('WEBP', 'ascii');
 
 /** True when the file's leading bytes match the signature of its declared MIME type. */
 export function hasMatchingMagicBytes(filePath: string, mimeType: string): boolean {
@@ -102,7 +105,9 @@ export function hasMatchingMagicBytes(filePath: string, mimeType: string): boole
   try {
     fd = fs.openSync(filePath, 'r');
     const bytesRead = fs.readSync(fd, header, 0, header.length, 0);
-    return signatures.some((sig) => bytesRead >= sig.length && header.subarray(0, sig.length).equals(sig));
+    const prefixOk = signatures.some((sig) => bytesRead >= sig.length && header.subarray(0, sig.length).equals(sig));
+    if (mimeType === 'image/webp') return prefixOk && bytesRead >= 12 && header.subarray(8, 12).equals(WEBP_FORM);
+    return prefixOk;
   } catch {
     return false;
   } finally {

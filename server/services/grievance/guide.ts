@@ -4,6 +4,7 @@ import { generateWithRetry, getModelName, thinkingConfigFor, TIMEOUTS } from '..
 import { buildGrievanceContents, buildGrievancePrompt } from '../ai/prompts.js';
 import { findUnlistedPhoneNumbers } from '../ai/safety.js';
 import { numberTokens, toAsciiDigits } from '../text/numbers.js';
+import { MAX_AMOUNT_RUPEES, hasAtMostTwoDecimals } from '../../../shared/grievance.js';
 
 /**
  * Guided grievance drafting.
@@ -28,14 +29,14 @@ export interface GrievanceFacts {
 }
 
 export const GRIEVANCE_FIELDS = ['amount', 'duration'] as const;
-export const MAX_AMOUNT_RUPEES = 10_000_000;
+export { MAX_AMOUNT_RUPEES };
 export const MAX_DURATION = 3650;
 
 const amountValue = z
   .number()
   .positive()
   .max(MAX_AMOUNT_RUPEES)
-  .refine((n) => Math.round(n * 100) === n * 100, 'at most 2 decimals');
+  .refine(hasAtMostTwoDecimals, 'at most 2 decimals');
 const durationValue = z.number().int().min(1).max(MAX_DURATION);
 
 export const GrievanceFactsSchema = z
@@ -56,7 +57,7 @@ export function cleanFacts(input: z.infer<typeof GrievanceFactsSchema> | undefin
   if (typeof input.days === 'number') facts.days = input.days;
   else if (typeof input.weeks === 'number') facts.weeks = input.weeks;
   else if (typeof input.months === 'number') facts.months = input.months;
-  const platform = input.platform?.replace(/[<>{}\[\]"`]/g, '').trim();
+  const platform = input.platform?.replace(/[<>{}[\]"`]/g, '').trim();
   if (platform) facts.platform = platform;
   return facts;
 }
@@ -502,6 +503,11 @@ export interface DraftResult {
   issue: GrievanceIssue;
   /** True when the model was unavailable or its draft was rejected. */
   usedFallback: boolean;
+  /**
+   * For hi/pa drafts: a fact-only English version, for platform support teams
+   * and offices that only read English. Built from the same confirmed facts.
+   */
+  englishDraft?: string;
 }
 
 /**
@@ -517,7 +523,14 @@ export async function generateGrievanceDraft(params: {
 }): Promise<DraftResult> {
   const { description, facts, language } = params;
   const issue = params.issue ?? detectIssue(description);
-  const fallback = (): DraftResult => ({ ...buildFactOnlyDraft(issue, facts, language, description), facts, issue, usedFallback: true });
+  const english = language === 'en' ? {} : { englishDraft: buildFactOnlyDraft(issue, facts, 'en', description).draftMessage };
+  const fallback = (): DraftResult => ({
+    ...buildFactOnlyDraft(issue, facts, language, description),
+    facts,
+    issue,
+    usedFallback: true,
+    ...english,
+  });
 
   try {
     const ai = getGenAI();
@@ -548,6 +561,7 @@ export async function generateGrievanceDraft(params: {
       facts,
       issue,
       usedFallback: false,
+      ...english,
     };
   } catch (err) {
     console.error('[Grievance Draft Error]', (err as Error).message);

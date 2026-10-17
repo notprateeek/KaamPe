@@ -3,7 +3,8 @@ import { useApp, UserProfile } from '../../context/AppContext';
 import { Language } from '../../i18n/translations';
 import { Button } from '../../components/ui/Button';
 import { Dialog } from '../../components/ui/Dialog';
-import { Check } from 'lucide-react';
+import { Check, PlayCircle } from 'lucide-react';
+import { DemoLoginForm } from '../auth/DemoLogin';
 import { INDIAN_STATES, WORKER_TYPES } from '../../constants/profile';
 
 const LANGUAGES: Array<{ code: Language; label: string; sub: string }> = [
@@ -24,6 +25,7 @@ export const OnboardingModal: React.FC = () => {
   const [selectedWorker, setSelectedWorker] = useState<UserProfile['workerType']>(profile.workerType || 'delivery');
   const [selectedState, setSelectedState] = useState<string>(profile.state || 'Punjab');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
 
   const handleLangSelect = (lang: Language) => {
     setSelectedLang(lang);
@@ -45,13 +47,15 @@ export const OnboardingModal: React.FC = () => {
     }
   };
 
-  const title = step === 1 ? t.onboarding.step1Title : step === 2 ? t.onboarding.step2Title : t.onboarding.step3Title;
+  const title = showDemo ? t.demo.loginTitle : step === 1 ? t.onboarding.step1Title : step === 2 ? t.onboarding.step2Title : t.onboarding.step3Title;
 
   return (
     // Not dismissible: the app needs a language and profile before it can be used
     <Dialog open onClose={() => {}} dismissible={false} title={title}>
+      {showDemo && <DemoLoginForm idPrefix="onboarding-demo" onCancel={() => setShowDemo(false)} />}
+
       {/* Step indicator */}
-      <div className="flex items-center justify-between -mt-2 mb-5">
+      <div className={`${showDemo ? 'hidden' : 'flex'} items-center justify-between -mt-2 mb-5`}>
         <div className="flex gap-1.5" aria-hidden="true">
           {[1, 2, 3].map((s) => (
             <div
@@ -68,7 +72,8 @@ export const OnboardingModal: React.FC = () => {
       </div>
 
       {/* SCREEN 1: Language */}
-      {step === 1 && (
+      {step === 1 && !showDemo && (
+        <>
         <fieldset>
           <legend className="text-sm text-ink-muted mb-4">{t.onboarding.step1Subtitle}</legend>
           <div className="space-y-3">
@@ -95,10 +100,21 @@ export const OnboardingModal: React.FC = () => {
             })}
           </div>
         </fieldset>
+
+        {/* Shortcut for testers: a pre-filled demo account instead of setup */}
+        <div className="mt-5 pt-4 border-t border-hairline-soft">
+          <p className="text-sm font-semibold text-ink">{t.demo.cardTitle}</p>
+          <p className="text-xs text-ink-muted mb-2.5">{t.demo.cardText}</p>
+          <Button variant="secondary" size="md" fullWidth onClick={() => setShowDemo(true)} className="gap-2">
+            <PlayCircle className="w-4 h-4" aria-hidden="true" />
+            {t.demo.tryDemo}
+          </Button>
+        </div>
+        </>
       )}
 
       {/* SCREEN 2: Work */}
-      {step === 2 && (
+      {step === 2 && !showDemo && (
         <div>
           <fieldset>
             <legend className="text-sm text-ink-muted mb-4">{t.onboarding.step2Subtitle}</legend>
@@ -130,7 +146,7 @@ export const OnboardingModal: React.FC = () => {
       )}
 
       {/* SCREEN 3: State */}
-      {step === 3 && (
+      {step === 3 && !showDemo && (
         <div>
           <p id="onboarding-state-hint" className="text-sm text-ink-muted mb-4">
             {t.onboarding.step3Subtitle}

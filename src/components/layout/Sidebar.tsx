@@ -1,79 +1,32 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { WORKER_ICONS } from '../../constants/workerIcons';
-import { getNavItems } from './navItems';
+import { QuickPrefs, ToolList, UserCard } from './NavPanel';
 
-/** Desktop / tablet navigation (md and up). The mobile layout uses Header + BottomNav instead. */
+/** Desktop / tablet navigation (md and up): every tool, quick preferences and the signed-in user. */
 export const Sidebar: React.FC = () => {
-  const { activeTab, setActiveTab, profile, t } = useApp();
-  const WorkerIcon = WORKER_ICONS[profile.workerType];
-  const navItems = getNavItems(t).filter((item) => item.id !== 'me');
+  const { t, isDemo } = useApp();
 
   return (
     <aside className="hidden md:flex md:flex-col w-64 lg:w-72 shrink-0 h-screen sticky top-0 border-r border-hairline bg-surface-1 overflow-y-auto">
-      <div className="px-6 pt-7 pb-7">
+      <div className="px-6 pt-6 pb-5">
         <span className="text-[1.75rem] leading-none font-extrabold font-wide text-ink">
-          Kaam<span className="bg-marigold px-1.5 rounded-md ml-0.5">Pe</span>
+          Kaam<span className="bg-marigold text-marigold-ink px-1.5 rounded-md ml-0.5">Pe</span>
         </span>
-        <p className="text-sm text-ink-muted mt-2">{t.tagline}</p>
+        <p className="text-sm text-ink-muted mt-1.5">{t.tagline}</p>
+        {isDemo && (
+          <span className="inline-block mt-2.5 text-xs font-bold px-2 py-1 rounded-full bg-accent-light text-accent border border-accent-subtle">
+            {t.demo.badge}
+          </span>
+        )}
       </div>
 
-      <nav aria-label={t.a11y.mainNav} className="px-3">
-        <ul className="space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <li key={item.id}>
-                <button
-                  onClick={() => setActiveTab(item.id)}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`w-full flex items-center gap-3 px-3 min-h-[56px] rounded-subtle text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                    isActive ? 'bg-ink text-white' : 'text-ink hover:bg-wash'
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-ink-muted'}`} aria-hidden="true" />
-                  <span className="min-w-0">
-                    <span className="block text-[0.9375rem] font-semibold leading-tight">{item.label}</span>
-                    <span className={`block text-xs truncate ${isActive ? 'text-white/80' : 'text-ink-muted'}`}>
-                      {item.description}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <div className="px-3">
+        <ToolList />
+      </div>
 
-      {/* Profile lives in its own tab; this row is the way in on desktop. */}
-      <div className="mt-auto p-3">
-        <button
-          type="button"
-          onClick={() => setActiveTab('me')}
-          aria-current={activeTab === 'me' ? 'page' : undefined}
-          className={`w-full flex items-center gap-3 p-2.5 rounded-subtle text-left border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-            activeTab === 'me' ? 'bg-ink border-ink text-white' : 'bg-surface-2 border-hairline-soft text-ink hover:border-ink'
-          }`}
-        >
-          <span
-            className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-              activeTab === 'me' ? 'bg-white text-ink' : 'bg-ink text-white'
-            }`}
-            aria-hidden="true"
-          >
-            <WorkerIcon className="w-5 h-5" />
-          </span>
-          <span className="flex-1 min-w-0 leading-tight">
-            <span className="block text-sm font-semibold truncate">{t.profileEditor.workerShort[profile.workerType]}</span>
-            <span className={`block text-xs truncate ${activeTab === 'me' ? 'text-white/80' : 'text-ink-muted'}`}>
-              {profile.state}
-            </span>
-            <span className="sr-only">, {t.me.openProfile}</span>
-          </span>
-          <ChevronRight className="w-4 h-4 shrink-0 opacity-70" aria-hidden="true" />
-        </button>
+      <div className="mt-auto px-3 pb-4 pt-3 space-y-2 border-t border-hairline-soft">
+        <QuickPrefs idPrefix="sidebar" />
+        <UserCard />
       </div>
     </aside>
   );

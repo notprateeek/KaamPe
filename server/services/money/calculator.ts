@@ -14,6 +14,32 @@ export interface MoneyEntryRecord {
   date: string; // YYYY-MM-DD
   createdAt: number;
   updatedAt: number;
+  /** Earnings only, optional: trips / deliveries / rides done. */
+  trips?: number | null;
+  /** Earnings only, optional: time worked, in whole minutes. */
+  workMinutes?: number | null;
+}
+
+export const MAX_TRIPS = 1000;
+export const MAX_WORK_MINUTES = 24 * 60;
+
+/**
+ * Hours worked ("8", "8.5", 7.25) -> whole minutes, or null when not given.
+ * Throws MoneyValidationError for anything outside (0, 24] hours.
+ */
+export function parseWorkHours(input: unknown): number | null {
+  if (input === undefined || input === null || input === '') return null;
+  const n = typeof input === 'number' ? input : Number(String(input).trim().replace(',', '.'));
+  if (!Number.isFinite(n) || n <= 0 || n > 24) throw new MoneyValidationError('invalid', 'Hours must be more than 0 and at most 24');
+  return Math.min(MAX_WORK_MINUTES, Math.max(1, Math.round(n * 60)));
+}
+
+/** Trips/deliveries count, or null when not given. Throws for non-integers or > 1000. */
+export function parseTrips(input: unknown): number | null {
+  if (input === undefined || input === null || input === '') return null;
+  const n = typeof input === 'number' ? input : Number(String(input).trim());
+  if (!Number.isInteger(n) || n < 0 || n > MAX_TRIPS) throw new MoneyValidationError('invalid', 'Trips must be a whole number up to 1000');
+  return n;
 }
 
 /** Hard ceiling for a single money entry: ₹10,00,000 (10 lakh). */

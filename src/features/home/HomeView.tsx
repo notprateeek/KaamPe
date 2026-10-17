@@ -1,16 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp, TabId } from '../../context/AppContext';
 import { useToast } from '../../components/ui/Toast';
-import { fill, formatPaise } from '../money/moneyUtils';
+import { deleteMoneyEntry, fill, formatPaise, type WeeklySummary } from '../money/moneyUtils';
+import { RightsTipCard, SchemesForYou, WeekPulse } from './HomeExtras';
+import { useScreenReader } from '../../components/speech/ScreenReader';
+import { todayLocalISODate } from '../../lib/date';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { VoiceInputButton } from '../../components/voice/VoiceInputButton';
 import { ReadAloudButton } from '../../components/speech/ReadAloudButton';
 import { CopyButton } from '../../components/speech/CopyButton';
+import { RichText } from '../../components/ui/RichText';
 import {
   GuidedGrievance,
   type GrievanceDraftResponse,
   type GrievanceGuideResponse,
+  type GrievanceSnapshot,
 } from '../grievance/GuidedGrievance';
 import type { Language, Translations } from '../../i18n/translations';
 import {
@@ -25,12 +30,13 @@ import {
   Trash2,
   Target,
   ChevronRight,
+  Square,
 } from 'lucide-react';
 import type { HelpTab } from '../help/HelpView';
 
 interface MoneyConfirmation {
   ready: boolean;
-  earning: { amountRupees: number; source: string } | null;
+  earning: { amountRupees: number; source: string; trips?: number; hours?: number } | null;
   expense: { amountRupees: number; category: string } | null;
   netRupees: number;
   formattedEarning: string | null;
@@ -59,12 +65,46 @@ export interface ChatMessage {
   grievance?: GrievanceGuideResponse | GrievanceDraftResponse;
   /** The worker's message that started the complaint. */
   grievanceDescription?: string;
+  /** The worker's progress on the complaint card, so it survives tab switches. */
+  grievanceSnapshot?: GrievanceSnapshot;
   /** Language the message was written in (for read-aloud voice). */
   lang?: Language;
   /** Request failed; `retryText` is the prompt to resend. */
   isError?: boolean;
   retryText?: string;
   createdAt: number;
+}
+
+/**
+ * Reads POST /api/ai/chat. A streamed (NDJSON) reply reports the answer text as it
+ * grows through `onPartial` and resolves with the final body; a plain JSON reply
+ * (older server, or an error) resolves directly.
+ */
+export async function readChatResponse(res: Response, onPartial: (text: string) => void): Promise<any> {
+  if (!res.headers.get('content-type')?.includes('ndjson') || !res.body) return res.json().catch(() => null);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let done: unknown = null;
+  const handle = (line: string) => {
+    if (!line.trim()) return;
+    const event = JSON.parse(line);
+    if (event.event === 'partial' && typeof event.directAnswer === 'string') onPartial(event.directAnswer);
+    else if (event.event === 'done') done = event.body;
+    else if (event.event === 'error') throw new Error(typeof event.error === 'string' ? event.error : 'error');
+  };
+  for (;;) {
+    const { value, done: finished } = await reader.read();
+    if (finished) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      handle(buffer.slice(0, nl));
+      buffer = buffer.slice(nl + 1);
+    }
+  }
+  handle(buffer);
+  return done;
 }
 
 /** Plain-text version of an assistant reply, for read-aloud and copy. */
@@ -79,7 +119,8 @@ function speakableText(msg: ChatMessage, t: Translations): string {
     parts.push(msg.draftMessage);
   }
   if (!parts.length && msg.content) parts.push(msg.content);
-  return parts.join('\n');
+  // Copy and read-aloud get plain text, not the **bold** markers RichText renders.
+  return parts.join('\n').replace(/\*\*/g, '');
 }
 
 const prefersReducedMotion = () =>
@@ -102,11 +143,16 @@ export const HomeView: React.FC<{
   /** Changes whenever money was added/removed elsewhere, so today's totals refetch. */
   moneyVersion?: number;
 }> = ({ messages, setMessages, onOpenAddEarning, onNavigateToTab, onOpenHelp, initialPrompt, moneyVersion = 0 }) => {
-  const { t, profile, dailyGoalPaise, buzz } = useApp();
+  const { t, profile, dailyGoalPaise, buzz, autoRead, autoSaveMoney, sessionVersion } = useApp();
+  const reader = useScreenReader();
+  const [weekly, setWeekly] = useState<WeeklySummary | null>(null);
   const { showToast } = useToast();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [inputMessage, setInputMessage] = useState(initialPrompt || '');
   const [isSending, setIsSending] = useState(false);
+  /** Answer text streamed so far for the pending reply (empty until the first words arrive). */
+  const [streamingText, setStreamingText] = useState('');
+  const abortRef = useRef<AbortController | null>(null);
   const [todayMoney, setTodayMoney] = useState<TodaySummary | null>(null);
   // Per-card save state so saving one confirmation doesn't spin every card.
   const [savingIds, setSavingIds] = useState<Record<string, boolean>>({});
@@ -123,6 +169,7 @@ export const HomeView: React.FC<{
       if (res.ok) {
         const data = await res.json();
         setTodayMoney(data.today);
+        setWeekly(data.weekly ?? null);
       }
     } catch (err) {
       console.warn('Failed to load today money', err);
@@ -131,7 +178,7 @@ export const HomeView: React.FC<{
 
   useEffect(() => {
     fetchTodayMoney();
-  }, [moneyVersion]);
+  }, [moneyVersion, sessionVersion]);
 
   // Composer grows with the text (up to ~6 lines) instead of scrolling inside two rows.
   useEffect(() => {
@@ -169,22 +216,63 @@ export const HomeView: React.FC<{
 
     setMessages((prev) => [...prev, userMsg]);
     setIsSending(true);
+    setStreamingText('');
     setLiveStatus(t.ai.thinking);
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        signal: controller.signal,
         body: JSON.stringify({
           message: textToSend,
           language: profile.language,
+          stream: true,
+          autoSave: autoSaveMoney,
         }),
       });
 
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(res.status === 429 ? t.chat.rateLimited : t.common.error);
+      }
+      const data = await readChatResponse(res, setStreamingText);
+      if (!data) throw new Error(t.common.error);
+
+      // Auto-save is on: the entry is already saved. Show a short note and offer Undo.
+      if (data.type === 'saved') {
+        const ids: string[] = Array.isArray(data.savedEntries)
+          ? data.savedEntries.map((e: { id?: unknown }) => e.id).filter((id: unknown): id is string => typeof id === 'string')
+          : [];
+        const msgId = 'msg_' + (Date.now() + 1);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: msgId,
+            role: 'assistant',
+            type: 'text',
+            content: `${data.message} (${data.confirmation?.formattedNet ?? ''})`,
+            lang: profile.language,
+            createdAt: Date.now(),
+          },
+        ]);
+        setLiveStatus(data.message);
+        buzz();
+        await fetchTodayMoney();
+        showToast(t.ai.moneySavedToast, {
+          label: t.common.undo,
+          onAction: () =>
+            Promise.all(ids.map((id) => deleteMoneyEntry(id)))
+              .then(async () => {
+                setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, content: t.autoSave.undone } : m)));
+                await fetchTodayMoney();
+                showToast(t.autoSave.undone);
+              })
+              .catch(() => showToast(t.money.errorDelete)),
+        });
+        return;
       }
 
       const assistantMsg: ChatMessage = {
@@ -209,7 +297,17 @@ export const HomeView: React.FC<{
 
       setMessages((prev) => [...prev, assistantMsg]);
       setLiveStatus(t.chat.newReply);
+      // "Read replies aloud" preference: speak the new answer right away
+      if (autoRead) {
+        const spoken = speakableText(assistantMsg, t);
+        if (spoken) reader.readText(spoken);
+      }
     } catch (err: unknown) {
+      if (controller.signal.aborted) {
+        // Stop pressed: the server drops the request and saves nothing.
+        setLiveStatus(t.stream.stopped);
+        return;
+      }
       // Network failures (TypeError) and server errors both get a localized message.
       const message =
         err instanceof Error && (err.message === t.chat.rateLimited || err.message === t.common.error)
@@ -230,9 +328,13 @@ export const HomeView: React.FC<{
       ]);
       setLiveStatus('');
     } finally {
+      abortRef.current = null;
+      setStreamingText('');
       setIsSending(false);
     }
   };
+
+  const stopSending = () => abortRef.current?.abort();
 
   // Section 17: User presses Save on confirmation card -> Persist it!
   const handleConfirmMoneySave = async (msgId: string, conf: MoneyConfirmation) => {
@@ -248,7 +350,9 @@ export const HomeView: React.FC<{
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          earning: conf.earning ? { amount: conf.earning.amountRupees, source: conf.earning.source } : null,
+          earning: conf.earning
+            ? { amount: conf.earning.amountRupees, source: conf.earning.source, trips: conf.earning.trips, hours: conf.earning.hours }
+            : null,
           expense: conf.expense ? { amount: conf.expense.amountRupees, category: conf.expense.category } : null,
         }),
       });
@@ -344,7 +448,7 @@ export const HomeView: React.FC<{
   return (
     // Mobile: one column (ask → conversation → today's money → shortcuts).
     // lg+: ask + conversation on the left, money + shortcuts pinned on the right.
-    <div className="grid gap-6 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+    <div className="grid grid-cols-1 gap-6 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
       {/* ASK AREA (Section 10) */}
       <section className="space-y-3 lg:col-start-1 lg:row-start-1 min-w-0">
         <div className="pt-1">
@@ -358,7 +462,7 @@ export const HomeView: React.FC<{
         </div>
 
         {/* LARGE CONVERSATIONAL INPUT — STRONGEST ACTION (Section 10) */}
-        <div className="rounded-card bg-surface-1 border-[1.5px] border-ink p-3 md:p-4 shadow-[0_12px_32px_rgba(23,33,77,0.10)] focus-within:ring-2 focus-within:ring-ink/20">
+        <div className="rounded-card bg-surface-1 border-[1.5px] border-ink p-3 md:p-4 shadow-lift focus-within:ring-2 focus-within:ring-ink/20">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -400,17 +504,23 @@ export const HomeView: React.FC<{
                   controlsId="home-chat-input"
                   disabled={isSending}
                 />
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  disabled={!inputMessage.trim() || isSending}
-                  isLoading={isSending}
-                  className="flex items-center gap-2 px-5 shrink-0"
-                >
-                  <span>{t.home.askButton}</span>
-                  <Send className="w-4 h-4" aria-hidden="true" />
-                </Button>
+                {isSending ? (
+                  <Button type="button" variant="secondary" size="lg" onClick={stopSending} className="flex items-center gap-2 px-5 shrink-0">
+                    <Square className="w-3.5 h-3.5 fill-current" aria-hidden="true" />
+                    <span>{t.stream.stop}</span>
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    disabled={!inputMessage.trim()}
+                    className="flex items-center gap-2 px-5 shrink-0"
+                  >
+                    <span>{t.home.askButton}</span>
+                    <Send className="w-4 h-4" aria-hidden="true" />
+                  </Button>
+                )}
               </div>
             </div>
           </form>
@@ -476,7 +586,7 @@ export const HomeView: React.FC<{
             if (isUser) {
               return (
                 <div key={msg.id} className="flex justify-end">
-                  <div className="bg-ink text-white rounded-[1.125rem] rounded-br-md px-4 py-2.5 max-w-[85%] md:max-w-[70%] text-base">
+                  <div className="bg-ink text-inverse rounded-[1.125rem] rounded-br-md px-4 py-2.5 max-w-[85%] md:max-w-[70%] text-base">
                     {msg.content}
                   </div>
                 </div>
@@ -500,7 +610,19 @@ export const HomeView: React.FC<{
                       <div className="text-base mb-4">
                         {msg.confirmation.earning && (
                           <div className="flex items-center justify-between py-2 border-b border-hairline">
-                            <span className="text-ink">{msg.confirmation.earning.source}</span>
+                            <span className="text-ink">
+                              {msg.confirmation.earning.source}
+                              {(msg.confirmation.earning.trips !== undefined || msg.confirmation.earning.hours !== undefined) && (
+                                <span className="block text-xs text-ink-muted">
+                                  {[
+                                    msg.confirmation.earning.trips !== undefined && fill(t.work.tripsShort, { n: msg.confirmation.earning.trips }),
+                                    msg.confirmation.earning.hours !== undefined && fill(t.work.hoursShort, { n: msg.confirmation.earning.hours }),
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                                </span>
+                              )}
+                            </span>
                             <span className="font-bold text-semantic-success">{msg.confirmation.formattedEarning}</span>
                           </div>
                         )}
@@ -560,7 +682,7 @@ export const HomeView: React.FC<{
                           )}
                         </div>
                         <p className="text-base md:text-lg font-medium text-ink leading-relaxed">
-                          {msg.directAnswer}
+                          <RichText text={msg.directAnswer} newTabLabel={t.trust.newTab} />
                         </p>
                       </div>
 
@@ -600,7 +722,9 @@ export const HomeView: React.FC<{
                                 <span className="text-xl font-extrabold font-wide text-accent leading-none" aria-hidden="true">
                                   {String(i + 1).padStart(2, '0')}
                                 </span>
-                                <span>{st}</span>
+                                <span>
+                                  <RichText text={st} newTabLabel={t.trust.newTab} />
+                                </span>
                               </li>
                             ))}
                           </ol>
@@ -629,6 +753,9 @@ export const HomeView: React.FC<{
                           </div>
                         </div>
                       )}
+
+                      {/* Money answers are computed from the worker's entries; everything else comes from the model. */}
+                      {!msg.breakdown && <p className="text-[11px] text-ink-muted">{t.trust.aiNote}</p>}
                     </Card>
                   )}
 
@@ -639,6 +766,10 @@ export const HomeView: React.FC<{
                         idPrefix={`chat-${msg.id}`}
                         description={msg.grievanceDescription}
                         initial={msg.grievance}
+                        snapshot={msg.grievanceSnapshot}
+                        onSnapshot={(grievanceSnapshot) =>
+                          setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, grievanceSnapshot } : m)))
+                        }
                       />
                     </Card>
                   )}
@@ -694,7 +825,19 @@ export const HomeView: React.FC<{
             );
           })}
 
-          {isSending && (
+          {isSending && streamingText && (
+            <div className="flex justify-start">
+              <Card className="bg-surface-1 border border-hairline p-4 md:p-6 max-w-full" aria-busy="true">
+                <span className="text-sm font-semibold text-ink-muted block mb-1.5">{t.ai.directAnswer}</span>
+                <p className="text-base md:text-lg font-medium text-ink leading-relaxed">
+                  <RichText text={streamingText} />
+                  <span className="inline-block w-2 h-5 align-text-bottom bg-accent ml-0.5 motion-safe:animate-pulse" aria-hidden="true" />
+                </p>
+              </Card>
+            </div>
+          )}
+
+          {isSending && !streamingText && (
             <div className="flex justify-start">
               <div className="bg-surface-1 border border-hairline rounded-2xl px-4 py-2.5 text-xs text-ink-muted flex items-center gap-2 shadow-subtle">
                 <svg className="motion-safe:animate-spin h-3.5 w-3.5 text-accent" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -712,7 +855,7 @@ export const HomeView: React.FC<{
       )}
 
       {/* SIDE PANEL: TODAY'S MONEY + SHORTCUTS (Section 10) */}
-      <aside className="space-y-6 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-10 min-w-0">
+      <aside className="space-y-6 lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:sticky lg:top-10 min-w-0">
         {/* AAJ KA KHATA: ruled ledger card with a red margin line */}
         <section className="relative overflow-hidden rounded-card border border-hairline bg-surface-1" aria-labelledby="home-khata-title">
           <span className="absolute inset-y-0 left-10 w-0.5 bg-rule" aria-hidden="true" />
@@ -788,6 +931,8 @@ export const HomeView: React.FC<{
           </div>
         </section>
 
+        <WeekPulse weekly={weekly} todayISO={todayLocalISODate()} onOpen={() => onNavigateToTab('money')} />
+
         <div>
           <h2 className="text-sm font-semibold text-ink-muted mb-2 px-1">{t.home.quickActions}</h2>
           <div className="grid grid-cols-2 gap-2">
@@ -821,6 +966,19 @@ export const HomeView: React.FC<{
           </div>
         </div>
       </aside>
+
+      {/* LEARN: daily rights tip + schemes picked for this worker */}
+      <div className={`space-y-6 lg:col-start-1 min-w-0 ${hasThread ? 'lg:row-start-3' : 'lg:row-start-2'}`}>
+        <RightsTipCard
+          onAsk={(prompt) => {
+            setInputMessage(prompt);
+            inputRef.current?.focus();
+            inputRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
+          }}
+          onOpenLibrary={() => onOpenHelp('rights')}
+        />
+        <SchemesForYou onCheckEligibility={() => onOpenHelp('schemes')} />
+      </div>
     </div>
   );
 };

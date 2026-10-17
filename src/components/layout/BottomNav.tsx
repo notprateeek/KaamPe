@@ -26,7 +26,7 @@ export const BottomNav: React.FC = () => {
               <span
                 aria-hidden="true"
                 className={`flex items-center justify-center h-8 w-14 rounded-full transition-colors ${
-                  isActive ? 'bg-ink text-white' : 'text-ink-muted group-hover:bg-wash group-hover:text-ink'
+                  isActive ? 'bg-ink text-inverse' : 'text-ink-muted group-hover:bg-wash group-hover:text-ink'
                 }`}
               >
                 <Icon className="w-5 h-5" strokeWidth={isActive ? 2.25 : 2} />

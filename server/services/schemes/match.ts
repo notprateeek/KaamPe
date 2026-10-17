@@ -256,7 +256,7 @@ export function schemeDisclaimer(lang: SchemeLanguage): string {
     return `Yeh sirf shuruaati jaanch hai, pakki eligibility nahi. Official website ya nazdeeki CSC / Sewa Kendra par confirm karein. Madad ke liye e-Shram helpline ${SCHEME_HELPLINE} par call karein.`;
   }
   if (lang === 'pa') {
-    return `ਇਹ ਸਿਰਫ਼ ਮੁੱਢਲੀ ਜਾਂਚ ਹੈ, ਪੱਕੀ ਯੋਗਤਾ ਨਹੀਂ। ਸਰਕਾਰੀ ਵੈੱਬਸਾਈਟ ਜਾਂ ਨੇੜਲੇ CSC / ਸੇਵਾ ਕੇਂਦਰ \'ਤੇ ਪੱਕਾ ਕਰੋ। ਮਦਦ ਲਈ ਈ-ਸ਼੍ਰਮ ਹੈਲਪਲਾਈਨ ${SCHEME_HELPLINE} \'ਤੇ ਕਾਲ ਕਰੋ।`;
+    return `ਇਹ ਸਿਰਫ਼ ਮੁੱਢਲੀ ਜਾਂਚ ਹੈ, ਪੱਕੀ ਯੋਗਤਾ ਨਹੀਂ। ਸਰਕਾਰੀ ਵੈੱਬਸਾਈਟ ਜਾਂ ਨੇੜਲੇ CSC / ਸੇਵਾ ਕੇਂਦਰ 'ਤੇ ਪੱਕਾ ਕਰੋ। ਮਦਦ ਲਈ ਈ-ਸ਼੍ਰਮ ਹੈਲਪਲਾਈਨ ${SCHEME_HELPLINE} 'ਤੇ ਕਾਲ ਕਰੋ।`;
   }
   return `This is only a preliminary check, not a confirmation of eligibility. Please confirm on the official website or at your nearest CSC / Sewa Kendra. For help, call the e-Shram helpline ${SCHEME_HELPLINE}.`;
 }

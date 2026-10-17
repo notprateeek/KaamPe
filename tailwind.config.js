@@ -1,5 +1,11 @@
 /** @type {import('tailwindcss').Config} */
+
+// Colours are CSS variables (RGB channels) defined in src/index.css for the
+// light and dark themes, so opacity modifiers like `bg-ink/50` keep working.
+const v = (name) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -8,39 +14,46 @@ export default {
     extend: {
       // "Neel Bahi" palette: indigo ledger ink on cool paper, marigold for fills only
       colors: {
-        canvas: '#EEF0F7',
+        canvas: v('canvas'),
         surface: {
-          1: '#ffffff',
-          2: '#F4F5FA',
+          1: v('surface-1'),
+          2: v('surface-2'),
         },
         ink: {
-          DEFAULT: '#17214D',
-          hover: '#0F1650',
-          muted: '#4D5579',
-          subtle: '#5A6285',
-          tertiary: '#5A6285',
+          DEFAULT: v('ink'),
+          hover: v('ink-hover'),
+          muted: v('ink-muted'),
+          subtle: v('ink-subtle'),
+          tertiary: v('ink-subtle'),
+        },
+        // Text/icons placed on an `ink` (or semantic) fill: white in light, deep indigo in dark
+        inverse: {
+          DEFAULT: v('inverse'),
+          accent: v('inverse-accent'),
         },
         hairline: {
-          DEFAULT: '#D9DDEB',
-          soft: '#E6E9F2',
+          DEFAULT: v('hairline'),
+          soft: v('hairline-soft'),
         },
         // Text-safe deep marigold for labels/links; use `marigold` for filled surfaces
         accent: {
-          DEFAULT: '#8F5400',
-          hover: '#6E4000',
-          light: '#FFF4D6',
-          subtle: '#F6DFA0',
+          DEFAULT: v('accent'),
+          hover: v('accent-hover'),
+          light: v('accent-light'),
+          subtle: v('accent-subtle'),
         },
         marigold: {
-          DEFAULT: '#F2A900',
-          hover: '#E09C00',
+          DEFAULT: v('marigold'),
+          hover: v('marigold-hover'),
+          // Text on marigold fills: always deep indigo, in both themes
+          ink: v('marigold-ink'),
         },
         // Pale ink tint for selected/active states (nav pill, segmented controls)
-        wash: '#E3E7F6',
-        rule: '#E8A0A0',
+        wash: v('wash'),
+        rule: v('rule'),
         semantic: {
-          error: '#B3261E',
-          success: '#1D7044',
+          error: v('error'),
+          success: v('success'),
         }
       },
       fontFamily: {
@@ -55,16 +68,21 @@ export default {
           'sans-serif'
         ],
       },
+      // Focus rings with an offset sit on the current surface, not hard-coded white
+      ringOffsetColor: {
+        DEFAULT: 'rgb(var(--c-surface-1))',
+      },
       borderRadius: {
         'card': '18px',
         'subtle': '12px',
       },
       boxShadow: {
-        'subtle': '0 1px 2px rgba(23, 33, 77, 0.06)',
-        'float': '0 18px 48px rgba(23, 33, 77, 0.18)',
-        'offset': '6px 6px 0 0 #17214D',
-        'offset-sm': '4px 4px 0 0 #17214D',
-        'bar': '0 -1px 0 0 #D9DDEB, 0 -8px 24px rgba(23, 33, 77, 0.06)',
+        'subtle': '0 1px 2px rgb(var(--c-shadow) / 0.06)',
+        'float': '0 18px 48px rgb(var(--c-shadow) / 0.18)',
+        'lift': '0 12px 32px rgb(var(--c-shadow) / 0.10)',
+        'offset': '6px 6px 0 0 rgb(var(--c-offset))',
+        'offset-sm': '4px 4px 0 0 rgb(var(--c-offset))',
+        'bar': '0 -1px 0 0 rgb(var(--c-hairline)), 0 -8px 24px rgb(var(--c-shadow) / 0.06)',
       }
     },
   },

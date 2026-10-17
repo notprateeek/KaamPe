@@ -5,25 +5,41 @@ import {
   paiseToRupees,
   formatRupees,
   calculateDailySummary,
-  calculateWeeklySummary,
   getTodayDateString,
   MoneyEntryRecord,
 } from '../money/calculator.js';
 import { db } from '../../db/index.js';
 import { buildIntentPrompt, wrapUserInput } from './prompts.js';
 import { generateWithRetry, getModelName, thinkingConfigFor, TIMEOUTS } from './client.js';
+import { createOpenAIClient, getOpenAIModel, openAIConfigured } from './openai.js';
 
 let genAIClient: GoogleGenAI | null = null;
 
+/**
+ * The AI client: Gemini by default. AI_PROVIDER=openai prefers OpenAI, and
+ * whichever provider has a key is used when the other's key is missing
+ * (the OpenAI client mimics the Gemini interface; see services/ai/openai.ts).
+ */
 export function getGenAI(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey.trim() === '') {
-    throw new Error('GEMINI_API_KEY is not configured on the server. Please provide a valid Gemini API key.');
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const preferOpenAI = process.env.AI_PROVIDER?.trim().toLowerCase() === 'openai';
+  if (openAIConfigured() && (preferOpenAI || !apiKey)) return createOpenAIClient() as GoogleGenAI;
+  if (!apiKey) {
+    throw new Error('No AI provider key is configured on the server. Set GEMINI_API_KEY (or OPENAI_API_KEY).');
   }
   if (!genAIClient) {
     genAIClient = new GoogleGenAI({ apiKey });
   }
   return genAIClient;
+}
+
+/** Which provider answers by default, for /api/health. Never includes a key. */
+export function activeProvider(): { provider: 'gemini' | 'openai' | null; model: string | null } {
+  const gemini = !!process.env.GEMINI_API_KEY?.trim();
+  const preferOpenAI = process.env.AI_PROVIDER?.trim().toLowerCase() === 'openai';
+  if (openAIConfigured() && (preferOpenAI || !gemini)) return { provider: 'openai', model: getOpenAIModel() };
+  if (gemini) return { provider: 'gemini', model: getModelName() };
+  return { provider: null, model: null };
 }
 
 export const IntentSchema = z.object({
@@ -40,6 +56,10 @@ export const IntentSchema = z.object({
     .object({
       amount: z.number().positive(),
       source: z.string().optional(),
+      /** Deliveries / rides / tasks, only if the worker said a count. */
+      trips: z.number().int().min(0).max(1000).optional(),
+      /** Hours worked, only if the worker said them. */
+      hours: z.number().positive().max(24).optional(),
     })
     .optional(),
   expense: z
@@ -121,7 +141,7 @@ export function isTrustedGovernmentDomain(url: string): boolean {
  */
 export async function extractIntent(
   userMessage: string,
-  userLanguage: string = 'hi'
+  _userLanguage: string = 'hi'
 ): Promise<ExtractedIntent> {
   const systemInstruction = buildIntentPrompt();
 
@@ -179,7 +199,7 @@ export async function extractIntent(
     const text = response.text || '{}';
     const json = JSON.parse(text);
     return IntentSchema.parse(json);
-  } catch (err) {
+  } catch {
     // If model fails or JSON parsing fails, fall back to safe regex-based intent classification
     return fallbackIntentExtraction(userMessage);
   }
@@ -218,9 +238,21 @@ export function fallbackIntentExtraction(text: string): ExtractedIntent {
     else if (/recharge|data|mobile/i.test(text)) category = 'Mobile/data';
     else if (/repair|maintenance|puncture/i.test(text)) category = 'Maintenance';
 
+    const tripsMatch = text.match(/(\d{1,4})\s*(?:deliver(?:y|ies)|orders?|trips?|rides?|parcels?|chakkar|सवारी|डिलीवरी|ਡਿਲੀਵਰੀ)/i);
+    const hoursMatch = text.match(/(\d{1,2}(?:\.\d)?)\s*(?:ghante|ghanta|ghante|hours?|hrs?|घंटे|घंटा|ਘੰਟੇ)/i);
+    const trips = tripsMatch ? Number(tripsMatch[1]) : undefined;
+    const hours = hoursMatch ? Number(hoursMatch[1]) : undefined;
+
     return {
       intent: 'record_money',
-      earning: earningAmount ? { amount: earningAmount, source } : undefined,
+      earning: earningAmount
+        ? {
+            amount: earningAmount,
+            source,
+            ...(trips !== undefined && trips <= 1000 ? { trips } : {}),
+            ...(hours !== undefined && hours > 0 && hours <= 24 ? { hours } : {}),
+          }
+        : undefined,
       expense: expenseAmount ? { amount: expenseAmount, category } : undefined,
     };
   }
@@ -264,7 +296,10 @@ export function fallbackIntentExtraction(text: string): ExtractedIntent {
 /**
  * Prepares a money confirmation object without saving anything to the database
  */
-export function prepareMoneyConfirmation(earning?: { amount: number; source?: string }, expense?: { amount: number; category?: string }) {
+export function prepareMoneyConfirmation(
+  earning?: { amount: number; source?: string; trips?: number; hours?: number },
+  expense?: { amount: number; category?: string }
+) {
   const earningRupees = earning?.amount || 0;
   const expenseRupees = expense?.amount || 0;
 
@@ -279,6 +314,8 @@ export function prepareMoneyConfirmation(earning?: { amount: number; source?: st
       amountRupees: earningRupees,
       amountPaise: earningPaise,
       source: earning?.source || 'Earning',
+      ...(typeof earning?.trips === 'number' ? { trips: earning.trips } : {}),
+      ...(typeof earning?.hours === 'number' ? { hours: earning.hours } : {}),
     } : null,
     expense: expenseRupees > 0 ? {
       amountRupees: expenseRupees,

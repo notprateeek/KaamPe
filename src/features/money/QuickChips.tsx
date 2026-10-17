@@ -4,7 +4,7 @@ const AMOUNTS = [100, 200, 500, 1000];
 
 const chipClass = (selected: boolean) =>
   `min-h-[40px] px-3.5 rounded-full text-sm font-semibold border-[1.5px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-    selected ? 'bg-ink border-ink text-white' : 'bg-surface-1 border-hairline text-ink hover:border-ink'
+    selected ? 'bg-ink border-ink text-inverse' : 'bg-surface-1 border-hairline text-ink hover:border-ink'
   }`;
 
 /** One-tap amounts under the amount field. Tapping fills the field; it stays editable. */
