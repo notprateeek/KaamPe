@@ -19,7 +19,7 @@ import { Dialog } from '../../components/ui/Dialog';
 import { ReadPageButton } from '../../components/speech/ReadPageButton';
 import { useScreenReader } from '../../components/speech/ScreenReader';
 import { DemoLoginForm } from '../auth/DemoLogin';
-import { Language } from '../../i18n/translations';
+import type { Language } from '../../i18n/translations';
 import { ProfileEditor } from '../../components/layout/ProfileEditor';
 import { Button } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';

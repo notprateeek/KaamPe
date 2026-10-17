@@ -11,7 +11,7 @@ import {
   PenLine,
   LucideIcon,
 } from 'lucide-react';
-import { Translations } from '../../i18n/translations';
+import type { Translations } from '../../i18n/translations';
 import type { TabId } from '../../context/AppContext';
 import type { HelpTab } from '../../features/help/HelpView';
 

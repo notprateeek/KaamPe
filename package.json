@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "NODE_ENV=production vite build",
     "preview": "vite preview",
     "server": "tsx server/index.ts",
     "start": "NODE_ENV=production tsx server/index.ts",

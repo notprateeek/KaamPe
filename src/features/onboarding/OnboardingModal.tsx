@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp, UserProfile } from '../../context/AppContext';
-import { Language } from '../../i18n/translations';
+import type { Language } from '../../i18n/translations';
 import { Button } from '../../components/ui/Button';
 import { Dialog } from '../../components/ui/Dialog';
 import { Check, PlayCircle } from 'lucide-react';

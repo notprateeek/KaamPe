@@ -1,5 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Language, translations, Translations } from '../i18n/translations';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import type { Language, Translations } from '../i18n/translations';
+import { DEFAULT_TRANSLATIONS, getLoadedTranslations, loadTranslations } from '../i18n/loader';
 import { safeGetItem, safeSetItem } from '../lib/storage';
 import type { HelpTab } from '../features/help/HelpView';
 
@@ -111,8 +112,7 @@ const THEMES: ThemePreference[] = ['system', 'light', 'dark'];
 const SPEECH_RATE_IDS: SpeechRate[] = ['slow', 'normal', 'fast'];
 const THEME_COLORS = { light: '#EEF0F7', dark: '#0E1222' } as const;
 
-const systemPrefersDark = () =>
-  typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+const systemPrefersDark = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 const TEXT_SIZES: TextSize[] = ['normal', 'large', 'xlarge'];
 
 function loadGoal(): number | null {
@@ -350,8 +350,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const onboarded = safeGetItem(ONBOARDED_KEY) === 'true';
           const prev = profileRef.current;
           commitProfile({
-            language:
-              !languageTouchedRef.current && LANGUAGES.includes(s.language) ? s.language : prev.language,
+            language: !languageTouchedRef.current && LANGUAGES.includes(s.language) ? s.language : prev.language,
             workerType: s.workerType || prev.workerType,
             state: s.state || prev.state,
             isOnboarded: onboarded,
@@ -389,7 +388,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [commitProfile]
   );
 
-  const t = translations[profile.language] || translations.hi;
+  // Dictionaries load per language (see i18n/loader): main.tsx preloads the saved one, so this
+  // only fetches on a language switch and re-renders once the chunk arrives.
+  const [, translationsLoaded] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    if (getLoadedTranslations(profile.language)) return;
+    let live = true;
+    loadTranslations(profile.language)
+      .then(() => live && translationsLoaded())
+      .catch((err) => console.warn('[i18n Load Warn]', err));
+    return () => {
+      live = false;
+    };
+  }, [profile.language]);
+  const t = getLoadedTranslations(profile.language) ?? DEFAULT_TRANSLATIONS;
 
   return (
     <AppContext.Provider
