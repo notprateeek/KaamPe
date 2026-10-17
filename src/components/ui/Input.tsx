@@ -23,7 +23,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={inputId} className="block text-xs font-semibold uppercase tracking-wider text-ink-muted mb-1.5">
+          <label htmlFor={inputId} className="block text-sm font-semibold text-ink mb-1.5">
             {label}
           </label>
         )}
@@ -31,7 +31,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <input
             id={inputId}
             ref={ref}
-            className={`w-full min-h-[44px] bg-surface-1 text-ink placeholder:text-ink-tertiary border border-hairline rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition-all focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:bg-surface-2 ${
+            className={`w-full min-h-[44px] bg-surface-1 text-ink placeholder:text-ink-tertiary border-[1.5px] border-hairline rounded-subtle px-3.5 py-2.5 text-base sm:text-sm transition-all focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink disabled:opacity-50 disabled:bg-surface-2 ${
               error ? 'border-semantic-error focus:border-semantic-error focus:ring-semantic-error' : ''
             } ${endAdornment ? 'pr-14' : ''} ${className}`}
             aria-invalid={error ? true : undefined}

@@ -7,10 +7,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Large-text preference (AppContext → <html class="text-large">). Everything
-   sized in rem scales with it; layouts are max-w-md so 390px still fits. */
+/* Text-size preference (AppContext → <html class="text-large|text-xlarge">).
+   Everything sized in rem scales with it; layouts still fit 390px. */
 html.text-large {
-  font-size: 118.75%;
+  font-size: 112.5%;
+}
+html.text-xlarge {
+  font-size: 125%;
 }
 
 body {
@@ -82,7 +85,13 @@ body {
 @layer utilities {
   /* Wide cut of Anek for display numbers and headings */
   .font-wide {
-    font-stretch: 125%;
+    font-stretch: 112%;
+    letter-spacing: -0.01em;
+  }
+
+  /* Toast / sheet entrance: answers a user action, so it is allowed to move */
+  .animate-rise {
+    animation: rise 180ms ease-out;
   }
 
   /* Block-print dot band (marigold cloth, indigo dots) */
@@ -108,5 +117,16 @@ body {
     mask:
       radial-gradient(circle 6px at 50% 0, transparent 98%, #000) 0 0 / 16px 51% repeat-x,
       radial-gradient(circle 6px at 50% 100%, transparent 98%, #000) 0 100% / 16px 51% repeat-x;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
   }
 }

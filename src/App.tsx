@@ -10,14 +10,21 @@ import { Button } from './components/ui/Button';
 import { Input } from './components/ui/Input';
 import { Dialog } from './components/ui/Dialog';
 import { SosButton } from './components/sos/SosButton';
+import { ToastProvider, useToast } from './components/ui/Toast';
+import { OfflineBanner } from './components/layout/OfflineBanner';
+import { AmountChips, SourceChips } from './features/money/QuickChips';
+import { deleteMoneyEntry, fill, formatPaise, parseRupeesToPaise } from './features/money/moneyUtils';
+import { WORKER_PLATFORMS } from './constants/workerIcons';
 import { todayLocalISODate } from './lib/date';
 
 // Non-home views are split out of the initial bundle. Onboarding stays eager:
 // it is the first thing a new user sees, and tests check for it right after load.
 const loadMoneyView = () => import('./features/money/MoneyView');
 const loadHelpView = () => import('./features/help/HelpView');
+const loadMeView = () => import('./features/me/MeView');
 const MoneyView = lazy(() => loadMoneyView().then((m) => ({ default: m.MoneyView })));
 const HelpView = lazy(() => loadHelpView().then((m) => ({ default: m.HelpView })));
+const MeView = lazy(() => loadMeView().then((m) => ({ default: m.MeView })));
 
 const ViewFallback: React.FC<{ label: string }> = ({ label }) => (
   <div role="status" aria-live="polite" className="flex items-center justify-center gap-2 py-16 text-sm text-ink-muted">
@@ -30,7 +37,11 @@ const ViewFallback: React.FC<{ label: string }> = ({ label }) => (
 );
 
 const AppContent: React.FC = () => {
-  const { profile, activeTab, setActiveTab, t } = useApp();
+  const { profile, activeTab, setActiveTab, t, buzz } = useApp();
+  const { showToast } = useToast();
+  // Bumped after any money change made outside a view, so Home's totals refetch.
+  const [moneyVersion, setMoneyVersion] = useState(0);
+  const bumpMoney = () => setMoneyVersion((v) => v + 1);
   const [initialPrompt, setInitialPrompt] = useState<string | undefined>();
   // Lives here so the conversation survives switching tabs
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -49,12 +60,15 @@ const AppContent: React.FC = () => {
     const id = window.setTimeout(() => {
       void loadMoneyView();
       void loadHelpView();
+      void loadMeView();
     }, 1200);
     return () => window.clearTimeout(id);
   }, []);
 
   const openEarningModal = () => {
     setError('');
+    setAmount('');
+    setSource('');
     setDate(todayLocalISODate());
     setShowGlobalEarningModal(true);
   };
@@ -67,8 +81,8 @@ const AppContent: React.FC = () => {
   const handleGlobalAddEarning = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const num = parseFloat(amount);
-    if (isNaN(num) || num <= 0) {
+    const paise = parseRupeesToPaise(amount);
+    if (paise === null) {
       setError(t.forms.invalidAmount);
       return;
     }
@@ -80,18 +94,36 @@ const AppContent: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          amount: num,
+          amount: paise / 100,
           source: source.trim() || undefined,
           date,
         }),
       });
 
       if (!res.ok) throw new Error('save_failed');
+      const saved = await res.json().catch(() => null);
+      const entryId: string | undefined = saved?.entry?.id;
 
       setShowGlobalEarningModal(false);
       setAmount('');
       setSource('');
-      setActiveTab('money');
+      buzz();
+      bumpMoney();
+      showToast(
+        fill(t.money.savedEarningToast, { amount: formatPaise(paise) }),
+        entryId
+          ? {
+              label: t.common.undo,
+              onAction: () =>
+                deleteMoneyEntry(entryId)
+                  .then(() => {
+                    bumpMoney();
+                    showToast(t.money.undoneToast);
+                  })
+                  .catch(() => showToast(t.money.errorDelete)),
+            }
+          : undefined
+      );
     } catch {
       setError(t.forms.saveFailed);
     } finally {
@@ -105,7 +137,7 @@ const AppContent: React.FC = () => {
         {t.a11y.skipToContent}
       </a>
 
-      <div className="block-print h-2.5" aria-hidden="true" />
+      <OfflineBanner />
 
       <div className="md:flex">
       <Sidebar />
@@ -116,7 +148,7 @@ const AppContent: React.FC = () => {
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-8 lg:px-10 pt-4 md:pt-8 pb-40 md:pb-28 focus:outline-none"
+          className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-8 lg:px-10 pt-2 md:pt-10 pb-36 md:pb-28 focus:outline-none"
         >
           {activeTab === 'home' && (
             <HomeView
@@ -129,12 +161,22 @@ const AppContent: React.FC = () => {
                 setActiveTab('help');
               }}
               initialPrompt={initialPrompt}
+              moneyVersion={moneyVersion}
             />
           )}
 
           {activeTab !== 'home' && (
             <Suspense fallback={<ViewFallback label={t.a11y.loading} />}>
-              {activeTab === 'money' && <MoneyView />}
+              {activeTab === 'money' && <MoneyView onEntryAdded={bumpMoney} />}
+              {activeTab === 'me' && (
+                <MeView
+                  hasChat={chatMessages.length > 0}
+                  onClearChat={() => {
+                    setChatMessages([]);
+                    showToast(t.me.chatCleared);
+                  }}
+                />
+              )}
               {activeTab === 'help' && (
                 <HelpView
                   initialTab={helpTab}
@@ -161,16 +203,16 @@ const AppContent: React.FC = () => {
             <Input
               id="quick-earning-amount"
               label={t.money.amountLabel}
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="any"
-              min="0.01"
+              autoComplete="off"
               placeholder={t.forms.amountPlaceholder}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               error={error === t.forms.invalidAmount ? error : undefined}
               required
             />
+            <AmountChips value={amount} onPick={setAmount} label={t.money.quickAmounts} />
 
             <Input
               id="quick-earning-source"
@@ -179,6 +221,12 @@ const AppContent: React.FC = () => {
               placeholder={t.forms.sourcePlaceholder}
               value={source}
               onChange={(e) => setSource(e.target.value)}
+            />
+            <SourceChips
+              options={WORKER_PLATFORMS[profile.workerType]}
+              value={source}
+              onPick={setSource}
+              label={t.money.quickSources}
             />
 
             <Input
@@ -216,7 +264,9 @@ const AppContent: React.FC = () => {
 export default function App() {
   return (
     <AppProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </AppProvider>
   );
 }

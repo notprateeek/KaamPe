@@ -15,10 +15,14 @@ export interface ReadAloudButtonProps {
 export const actionButtonClass =
   'inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-full border border-hairline bg-surface-1 text-xs font-semibold text-ink hover:bg-surface-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2';
 
-/** Listen / Stop toggle that reads `text` aloud. Renders nothing without speechSynthesis. */
+/**
+ * Listen / Stop toggle that reads `text` aloud with the browser's built-in
+ * speech synthesis (the device's own voices; nothing is sent to a server).
+ * Renders nothing without speechSynthesis.
+ */
 export const ReadAloudButton: React.FC<ReadAloudButtonProps> = ({ text, lang, className = '' }) => {
   const { t, profile } = useApp();
-  const { supported, speaking, failed, speak, stop } = useSpeechSynthesis(lang ?? profile.language);
+  const { supported, speaking, failed, voiceMissing, speak, stop } = useSpeechSynthesis(lang ?? profile.language);
 
   if (!supported || !text.trim()) return null;
 
@@ -27,6 +31,7 @@ export const ReadAloudButton: React.FC<ReadAloudButtonProps> = ({ text, lang, cl
       <button
         type="button"
         onClick={() => (speaking ? stop() : speak(text, lang ?? profile.language))}
+        title={t.speech.listenHint}
         className={`${actionButtonClass} ${speaking ? 'border-accent text-accent' : ''} ${className}`}
       >
         {speaking ? (
@@ -36,9 +41,9 @@ export const ReadAloudButton: React.FC<ReadAloudButtonProps> = ({ text, lang, cl
         )}
         <span>{speaking ? t.speech.stop : t.speech.listen}</span>
       </button>
-      {failed && (
+      {(failed || voiceMissing) && (
         <span role="alert" className="text-xs font-medium text-semantic-error">
-          {t.speech.speakError}
+          {voiceMissing ? t.speech.voiceUnavailable : t.speech.speakError}
         </span>
       )}
     </>

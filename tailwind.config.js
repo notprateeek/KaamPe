@@ -35,6 +35,8 @@ export default {
           DEFAULT: '#F2A900',
           hover: '#E09C00',
         },
+        // Pale ink tint for selected/active states (nav pill, segmented controls)
+        wash: '#E3E7F6',
         rule: '#E8A0A0',
         semantic: {
           error: '#B3261E',
@@ -62,6 +64,7 @@ export default {
         'float': '0 18px 48px rgba(23, 33, 77, 0.18)',
         'offset': '6px 6px 0 0 #17214D',
         'offset-sm': '4px 4px 0 0 #17214D',
+        'bar': '0 -1px 0 0 #D9DDEB, 0 -8px 24px rgba(23, 33, 77, 0.06)',
       }
     },
   },

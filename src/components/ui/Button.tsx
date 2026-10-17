@@ -21,16 +21,16 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variants = {
     primary: 'bg-ink text-white hover:bg-ink-hover shadow-subtle',
-    secondary: 'bg-surface-1 text-ink border-[1.5px] border-ink hover:bg-surface-2',
+    secondary: 'bg-surface-1 text-ink border-[1.5px] border-hairline hover:border-ink',
     accent: 'bg-marigold text-ink font-bold hover:bg-marigold-hover',
     danger: 'bg-semantic-error text-white hover:opacity-90 shadow-subtle',
-    ghost: 'text-ink hover:bg-surface-2 border border-transparent',
+    ghost: 'text-ink hover:bg-wash border border-transparent',
   };
 
   const sizes = {
-    sm: 'text-xs px-3 py-1.5 rounded-lg min-h-[40px]',
-    md: 'text-sm px-4 py-2.5 rounded-xl min-h-[44px]',
-    lg: 'text-base px-6 py-3.5 rounded-xl min-h-[50px] font-semibold',
+    sm: 'text-sm px-3 py-1.5 rounded-[10px] min-h-[40px]',
+    md: 'text-sm font-semibold px-4 py-2.5 rounded-subtle min-h-[48px]',
+    lg: 'text-base px-6 py-3.5 rounded-subtle min-h-[52px] font-semibold',
   };
 
   const width = fullWidth ? 'w-full' : '';

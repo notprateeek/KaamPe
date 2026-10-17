@@ -41,13 +41,20 @@ function getRecognitionCtor(): SpeechRecognitionCtor | null {
   return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 }
 
-export type SpeechInputError = 'permission' | 'no-speech' | 'no-mic' | 'network' | 'generic';
+/**
+ * 'network' and 'service' mean the browser's speech service itself is unusable
+ * (offline, blocked by the browser, or the language isn't offered) — callers
+ * can fall back to another transcription path.
+ */
+export type SpeechInputError = 'permission' | 'no-speech' | 'no-mic' | 'network' | 'service' | 'generic';
 
 function mapError(code: string): SpeechInputError | null {
   switch (code) {
     case 'not-allowed':
-    case 'service-not-allowed':
       return 'permission';
+    case 'service-not-allowed':
+    case 'language-not-supported':
+      return 'service';
     case 'no-speech':
       return 'no-speech';
     case 'audio-capture':

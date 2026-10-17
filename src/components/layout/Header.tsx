@@ -1,40 +1,36 @@
-import React, { useState } from 'react';
-import { Briefcase } from 'lucide-react';
+import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { Dialog } from '../ui/Dialog';
-import { LanguageSelect } from './LanguageSelect';
-import { TextSizeToggle } from './TextSizeToggle';
-import { ProfileEditor } from './ProfileEditor';
+import { WORKER_ICONS } from '../../constants/workerIcons';
 
-/** Mobile top bar (below md): logo, profile chip (opens editor), text size, language. Desktop uses the Sidebar. */
+/** Mobile top bar (below md): logo and a profile chip that opens the "You" tab. Desktop uses the Sidebar. */
 export const Header: React.FC = () => {
-  const { profile, t } = useApp();
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const { profile, activeTab, setActiveTab, t } = useApp();
+  const WorkerIcon = WORKER_ICONS[profile.workerType];
 
   return (
-    <header className="md:hidden sticky top-0 z-30 bg-surface-1/95 backdrop-blur-md border-b border-hairline px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-2xl leading-none font-extrabold font-wide text-ink shrink-0">
-          Kaam<span className="bg-marigold px-1 rounded-md">Pe</span>
+    <header className="md:hidden sticky top-0 z-30 bg-canvas/90 backdrop-blur-md px-4 pt-2.5 pb-2">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[1.625rem] leading-none font-extrabold font-wide text-ink shrink-0">
+          Kaam<span className="bg-marigold px-1 rounded-md ml-0.5">Pe</span>
         </span>
 
-        <div className="flex items-center gap-1.5 min-w-0">
+        {profile.isOnboarded && activeTab !== 'me' && (
           <button
-            onClick={() => setIsProfileOpen(true)}
-            aria-label={`${t.common.profile} – ${t.profileEditor.edit}`}
-            title={`${t.profileEditor.workerShort[profile.workerType]} · ${profile.state}`}
-            className="flex items-center justify-center w-11 h-11 rounded-full border-[1.5px] border-ink bg-marigold text-ink shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2"
+            type="button"
+            onClick={() => setActiveTab('me')}
+            className="flex items-center gap-2 min-h-[44px] pl-1 pr-3 rounded-full bg-surface-1 border border-hairline hover:border-ink min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            <Briefcase className="w-5 h-5" aria-hidden="true" />
+            <span className="w-9 h-9 rounded-full bg-ink text-white flex items-center justify-center shrink-0" aria-hidden="true">
+              <WorkerIcon className="w-[1.125rem] h-[1.125rem]" />
+            </span>
+            <span className="text-left leading-tight min-w-0">
+              <span className="block text-sm font-semibold text-ink truncate">{t.profileEditor.workerShort[profile.workerType]}</span>
+              <span className="block text-xs text-ink-muted truncate">{profile.state}</span>
+              <span className="sr-only">, {t.me.openProfile}</span>
+            </span>
           </button>
-          <TextSizeToggle />
-          <LanguageSelect id="language-select-header" className="w-[6.5rem] shrink-0" />
-        </div>
+        )}
       </div>
-
-      <Dialog open={isProfileOpen} onClose={() => setIsProfileOpen(false)} title={t.common.profile}>
-        <ProfileEditor idPrefix="sheet-profile" onDone={() => setIsProfileOpen(false)} />
-      </Dialog>
     </header>
   );
 };

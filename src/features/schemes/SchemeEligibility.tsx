@@ -24,7 +24,7 @@ interface EligibilityResult {
 
 const selectClass =
   'w-full bg-surface-1 text-ink border border-hairline rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent';
-const fieldLabelClass = 'block text-xs font-semibold uppercase tracking-wider text-ink-muted mb-1.5';
+const fieldLabelClass = 'block text-sm font-semibold text-ink mb-1.5';
 
 const safeHttpUrl = (url: unknown): string | null => {
   if (typeof url !== 'string') return null;
@@ -328,7 +328,7 @@ export const SchemeEligibility: React.FC<{ onAskAboutScheme?: (prompt: string) =
 
                         {m.reasons.length > 0 && (
                           <div className="mt-3">
-                            <h5 className="text-xs font-bold uppercase tracking-wider text-semantic-success flex items-center gap-1.5">
+                            <h5 className="text-sm font-semibold text-semantic-success flex items-center gap-1.5">
                               <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
                               {t.schemes.whyQualify}
                             </h5>
@@ -342,7 +342,7 @@ export const SchemeEligibility: React.FC<{ onAskAboutScheme?: (prompt: string) =
 
                         {m.needsCheck.length > 0 && (
                           <div className="mt-3">
-                            <h5 className="text-xs font-bold uppercase tracking-wider text-ink-muted flex items-center gap-1.5">
+                            <h5 className="text-sm font-semibold text-ink-muted flex items-center gap-1.5">
                               <ListChecks className="w-3.5 h-3.5" aria-hidden="true" />
                               {t.schemes.pleaseCheck}
                             </h5>

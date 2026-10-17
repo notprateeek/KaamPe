@@ -173,3 +173,53 @@ export async function fetchMoneyEntries(): Promise<MoneyEntry[]> {
   const json = await res.json();
   return Array.isArray(json.entries) ? json.entries : [];
 }
+
+/** Deletes one of this session's entries (used for Undo). Throws on failure. */
+export async function deleteMoneyEntry(id: string): Promise<void> {
+  const res = await fetch(`/api/money/entries/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+  if (!res.ok) throw new Error(`delete ${res.status}`);
+}
+
+/** Paise as a plain decimal rupee string for CSV ("850", "12.50"), no float math. */
+function paiseToPlain(paise: number): string {
+  const abs = Math.abs(paise);
+  const body = abs % 100 === 0 ? String(abs / 100) : `${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`;
+  return paise < 0 ? `-${body}` : body;
+}
+
+const csvCell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+
+/** Spreadsheet-friendly export, oldest first. Expenses are negative in the signed column. */
+export function entriesToCsv(entries: MoneyEntry[]): string {
+  const rows = [...entries]
+    .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt)
+    .map((e) =>
+      [
+        e.date,
+        e.type,
+        paiseToPlain(e.type === 'expense' ? -e.amountPaise : e.amountPaise),
+        e.categoryOrSource ?? '',
+        e.note ?? '',
+      ]
+        .map(csvCell)
+        .join(',')
+    );
+  return ['date,type,amount_rupees,source_or_category,note', ...rows].join('\n');
+}
+
+/** Distinct days with at least one entry, and the run of consecutive days ending today (or yesterday). */
+export function computeLoggingStats(entries: MoneyEntry[], todayISO: string): { days: number; streak: number } {
+  const dates = new Set(entries.map((e) => e.date));
+  const shift = (iso: string, by: number) => {
+    const d = new Date(`${iso}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + by);
+    return d.toISOString().slice(0, 10);
+  };
+  let cursor = dates.has(todayISO) ? todayISO : shift(todayISO, -1);
+  let streak = 0;
+  while (dates.has(cursor)) {
+    streak += 1;
+    cursor = shift(cursor, -1);
+  }
+  return { days: dates.size, streak };
+}

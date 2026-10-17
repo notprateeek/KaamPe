@@ -26,7 +26,7 @@ const FieldList = z.array(z.enum(GRIEVANCE_FIELDS)).max(GRIEVANCE_FIELDS.length)
 const GrievanceRequestSchema = z.object({
   action: z.enum(['collect', 'draft']),
   language: z.enum(['hi', 'en', 'pa']).optional(),
-  description: z.string().trim().min(1).max(1000),
+  description: z.string().trim().min(1).max(2000),
   facts: GrievanceFactsSchema.optional(),
   unknown: FieldList,
   answer: z.string().trim().max(500).optional(),

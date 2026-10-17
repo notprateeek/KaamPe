@@ -5,6 +5,8 @@ export interface Translations {
   tagline: string;
   subTagline: string;
   nav: {
+    me: string;
+    meDesc: string;
     home: string;
     money: string;
     help: string;
@@ -34,6 +36,9 @@ export interface Translations {
     };
   };
   home: {
+    goalProgress: string;
+    goalReached: string;
+    setGoal: string;
     greeting: string;
     questionPrompt: string;
     inputPlaceholder: string;
@@ -60,6 +65,14 @@ export interface Translations {
     examplePrompts: string[];
   };
   money: {
+    savedEarningToast: string;
+    savedExpenseToast: string;
+    undoneToast: string;
+    quickAmounts: string;
+    quickSources: string;
+    shareWeek: string;
+    shareWeekText: string;
+    shareCopied: string;
     title: string;
     netToday: string;
     earned: string;
@@ -252,6 +265,8 @@ export interface Translations {
     };
   };
   common: {
+    undo: string;
+    offline: string;
     error: string;
     retry: string;
     close: string;
@@ -269,6 +284,12 @@ export interface Translations {
     errorNoMic: string;
     errorNetwork: string;
     errorGeneric: string;
+    transcribing: string;
+    recordingTime: string;
+    reviewTranscript: string;
+    errorUnsupported: string;
+    errorTooShort: string;
+    errorTooLong: string;
   };
   /** Read-aloud + copy actions on answers */
   speech: {
@@ -278,6 +299,8 @@ export interface Translations {
     copied: string;
     copyFailed: string;
     speakError: string;
+    voiceUnavailable: string;
+    listenHint: string;
   };
   /** Floating SOS button + dialog */
   sos: {
@@ -294,6 +317,35 @@ export interface Translations {
     locationDenied: string;
     locationUnavailable: string;
     locationUnsupported: string;
+  };
+  /** "You" tab: profile, merged settings, data */
+  me: {
+    title: string;
+    openProfile: string;
+    statsTitle: string;
+    statEntries: string;
+    statDays: string;
+    statStreak: string;
+    settingsTitle: string;
+    textSize: string;
+    textNormal: string;
+    textLarge: string;
+    textXLarge: string;
+    dailyGoal: string;
+    dailyGoalHint: string;
+    goalSave: string;
+    goalRemove: string;
+    goalSaved: string;
+    haptics: string;
+    dataTitle: string;
+    exportCsv: string;
+    exportEmpty: string;
+    exportDone: string;
+    clearChat: string;
+    chatCleared: string;
+    redoSetup: string;
+    helplinesTitle: string;
+    privacyNote: string;
   };
   a11y: {
     skipToContent: string;
@@ -312,6 +364,43 @@ export interface Translations {
     amountPlaceholder: string;
     sourcePlaceholder: string;
   };
+  /** Questions about an explained document, answered with excerpts */
+  docQa: {
+    title: string;
+    hint: string;
+    placeholder: string;
+    ask: string;
+    asking: string;
+    answer: string;
+    evidence: string;
+    page: string;
+    notFound: string;
+  };
+  /** Guided complaint drafting */
+  grievance: {
+
+    kaampe: string;
+    you: string;
+    answerLabel: string;
+    answerPlaceholder: string;
+    send: string;
+    dontKnow: string;
+    reviewTitle: string;
+    amount: string;
+    duration: string;
+    days: string;
+    weeks: string;
+    months: string;
+    notKnown: string;
+    platform: string;
+    platformHint: string;
+    createDraft: string;
+    creating: string;
+    changeDetails: string;
+    notSent: string;
+    fallbackNote: string;
+    invalidAmount: string;
+  };
 }
 
 export const translations: Record<Language, Translations> = {
@@ -320,6 +409,8 @@ export const translations: Record<Language, Translations> = {
     tagline: 'Kaam ki baat. Seedhi baat.',
     subTagline: 'Your AI companion for work, money and rights.',
     nav: {
+      me: "Aap",
+      meDesc: "Profile aur settings",
       home: 'Home',
       money: 'Money',
       help: 'Help',
@@ -349,6 +440,9 @@ export const translations: Record<Language, Translations> = {
       },
     },
     home: {
+      goalProgress: "{goal} ke target mein se {left} baaki",
+      goalReached: "Aaj ka target poora ho gaya",
+      setGoal: "Roz ka target rakhein",
       greeting: 'Namaste 👋',
       questionPrompt: 'Aaj kis cheez mein help chahiye?',
       inputPlaceholder: 'Kaam, paise, rights ya safety ke baare mein poochho…',
@@ -375,6 +469,14 @@ export const translations: Record<Language, Translations> = {
       examplePrompts: ['Aaj Swiggy se 850 kamaye, 200 petrol mein gaye', 'Aaj kitna bacha?', 'Punjab mein construction workers ke liye koi scheme hai?'],
     },
     money: {
+      savedEarningToast: "{amount} kamai save hui",
+      savedExpenseToast: "{amount} kharcha save hua",
+      undoneToast: "Entry hata di",
+      quickAmounts: "Jaldi rakam chunein",
+      quickSources: "Platform chunein",
+      shareWeek: "Hafte ka hisaab bhejein",
+      shareWeekText: "Is hafte ka hisaab: Kamai {earned}, Kharcha {spent}, Bacha {net}. (KaamPe)",
+      shareCopied: "Hisaab copy ho gaya",
       title: 'Money Tracker',
       netToday: 'Bacha aaj',
       earned: 'Kamaya',
@@ -567,6 +669,8 @@ export const translations: Record<Language, Translations> = {
       },
     },
     common: {
+      undo: "Wapas lein",
+      offline: "Internet nahi hai. Judte hi KaamPe phir chalega.",
       error: 'Kuch gadbad hui. Kripya dobara try karein.',
       retry: 'Dobara koshish karein',
       close: 'Band karein',
@@ -583,6 +687,12 @@ export const translations: Record<Language, Translations> = {
       errorNoMic: 'Mic nahi mila. Mic check karein.',
       errorNetwork: 'Internet nahi hai, isliye bolkar likhna abhi nahi chalega.',
       errorGeneric: 'Bolkar likhna abhi nahi chala. Type karke likhein.',
+      transcribing: 'Awaaz ko text mein badal rahe hain…',
+      recordingTime: 'Recording… {seconds} / {max} second',
+      reviewTranscript: 'Aapki awaaz text mein likh di gayi hai. Jaanch kar badlein, phir "Poochhein" dabayein.',
+      errorUnsupported: 'Is browser mein awaaz record nahi ho sakti. Kripya type karein.',
+      errorTooShort: 'Recording bahut chhoti thi. Mic dabakar boliye, phir rokein.',
+      errorTooLong: 'Recording bahut lambi hai. 1 minute se chhota sandesh bolein.',
     },
     speech: {
       listen: 'Sunein',
@@ -591,6 +701,8 @@ export const translations: Record<Language, Translations> = {
       copied: 'Jawab copy hua',
       copyFailed: 'Copy nahi hua. Text ko daba kar copy karein.',
       speakError: 'Awaaz mein sunana abhi nahi chala.',
+      voiceUnavailable: 'Is phone mein is bhasha ki awaaz nahi hai. Jawab padh lein, ya phone settings mein awaaz jodein.',
+      listenHint: 'Phone ki apni awaaz se padhkar sunata hai',
     },
     sos: {
       buttonLabel: 'SOS: emergency number aur location bhejein',
@@ -606,6 +718,34 @@ export const translations: Record<Language, Translations> = {
       locationDenied: 'Location ki permission nahi mili. Browser settings mein location allow karein.',
       locationUnavailable: 'Location nahi mil payi. Thodi der baad dobara try karein.',
       locationUnsupported: 'Is phone/browser mein location nahi chalti.',
+    },
+    me: {
+      title: "Aapki profile",
+      openProfile: "Profile aur settings kholein",
+      statsTitle: "Aapka record",
+      statEntries: "Entries",
+      statDays: "Din likhe",
+      statStreak: "Lagataar din",
+      settingsTitle: "Settings",
+      textSize: "Akshar ka size",
+      textNormal: "Normal",
+      textLarge: "Bada",
+      textXLarge: "Sabse bada",
+      dailyGoal: "Roz ka target",
+      dailyGoalHint: "Home par dikhega target tak kitna baaki hai",
+      goalSave: "Target rakhein",
+      goalRemove: "Target hatayein",
+      goalSaved: "Target save ho gaya",
+      haptics: "Save par halka vibration",
+      dataTitle: "Aapka data",
+      exportCsv: "Hisaab download karein (CSV)",
+      exportEmpty: "Abhi download karne ko kuch nahi hai",
+      exportDone: "File download ho gayi",
+      clearChat: "Baatcheet saaf karein",
+      chatCleared: "Baatcheet saaf ho gayi",
+      redoSetup: "Setup dobara karein",
+      helplinesTitle: "Zaroori numbers",
+      privacyNote: "Aapka hisaab sirf is phone ke session se juda hai. Koi login ya Aadhaar nahi chahiye.",
     },
     a11y: {
       skipToContent: 'Seedhe content par jaayein',
@@ -624,12 +764,49 @@ export const translations: Record<Language, Translations> = {
       amountPlaceholder: 'Jaise 850',
       sourcePlaceholder: 'Jaise Swiggy, Zomato, Cash',
     },
+    docQa: {
+      title: 'Is document ke baare mein poochhein',
+      hint: 'Jawab sirf isi document se diya jayega, saath mein document ki line bhi.',
+      placeholder: 'Jaise: Order cancel karne par kitna katega?',
+      ask: 'Poochhein',
+      asking: 'Document mein dhoondh rahe hain…',
+      answer: 'Jawab',
+      evidence: 'Document mein likha hai',
+      page: 'Page {page}',
+      notFound: 'Document mein nahi mila',
+    },
+    grievance: {
+
+      kaampe: 'KaamPe',
+      you: 'Aap',
+      answerLabel: 'Aapka jawab',
+      answerPlaceholder: 'Jaise: ₹3200, 8 din',
+      send: 'Bhejein',
+      dontKnow: 'Pata nahi',
+      reviewTitle: 'Jaankari jaanch lein',
+      amount: 'Rakam (₹)',
+      duration: 'Kitne samay se',
+      days: 'din',
+      weeks: 'hafte',
+      months: 'mahine',
+      notKnown: 'Pata nahi',
+      platform: 'Platform ya maalik ka naam (zaroori nahi)',
+      platformHint: 'Naam nahi likhna ho to khaali chhod dein.',
+      createDraft: 'Draft banayein',
+      creating: 'Draft likh rahe hain…',
+      changeDetails: 'Jaankari badlein',
+      notSent: 'KaamPe yeh sandesh khud nahi bhejta. Copy karke aap khud bhejein.',
+      fallbackNote: 'AI abhi uplabdh nahi tha, isliye yeh seedha draft sirf aapki di hui jaankari se bana hai.',
+      invalidAmount: 'Rakam sahi likhein (0 se zyada, 2 decimal tak).',
+    },
   },
   en: {
     appName: 'KaamPe',
     tagline: 'Kaam ki baat. Seedhi baat.',
     subTagline: 'Your AI companion for work, money and rights.',
     nav: {
+      me: "You",
+      meDesc: "Profile and settings",
       home: 'Home',
       money: 'Money',
       help: 'Help',
@@ -659,6 +836,9 @@ export const translations: Record<Language, Translations> = {
       },
     },
     home: {
+      goalProgress: "{left} to go of {goal}",
+      goalReached: "Today's target reached",
+      setGoal: "Set a daily target",
       greeting: 'Namaste 👋',
       questionPrompt: 'What do you need help with today?',
       inputPlaceholder: 'Ask about work, money, rights, or safety…',
@@ -685,6 +865,14 @@ export const translations: Record<Language, Translations> = {
       examplePrompts: ['Earned 850 from Swiggy today, spent 200 on petrol', 'How much did I save today?', 'Are there government schemes for construction workers in Punjab?'],
     },
     money: {
+      savedEarningToast: "{amount} earning saved",
+      savedExpenseToast: "{amount} expense saved",
+      undoneToast: "Entry removed",
+      quickAmounts: "Quick amounts",
+      quickSources: "Pick a platform",
+      shareWeek: "Share this week",
+      shareWeekText: "This week: Earned {earned}, Spent {spent}, Saved {net}. (KaamPe)",
+      shareCopied: "Summary copied",
       title: 'Money Tracker',
       netToday: 'Net today',
       earned: 'Earned',
@@ -877,6 +1065,8 @@ export const translations: Record<Language, Translations> = {
       },
     },
     common: {
+      undo: "Undo",
+      offline: "You're offline. KaamPe will work again once you reconnect.",
       error: 'Something went wrong. Please try again.',
       retry: 'Retry',
       close: 'Close',
@@ -893,6 +1083,12 @@ export const translations: Record<Language, Translations> = {
       errorNoMic: 'No microphone found. Please check your mic.',
       errorNetwork: 'No internet, so voice typing is not available right now.',
       errorGeneric: 'Voice typing did not work. Please type instead.',
+      transcribing: 'Turning your voice into text…',
+      recordingTime: 'Recording… {seconds} / {max} seconds',
+      reviewTranscript: 'Your voice was turned into text. Check or edit it, then press Ask.',
+      errorUnsupported: 'This browser cannot record voice. Please type instead.',
+      errorTooShort: 'The recording was too short. Tap the mic, speak, then stop.',
+      errorTooLong: 'The recording is too long. Please keep it under 1 minute.',
     },
     speech: {
       listen: 'Listen',
@@ -901,6 +1097,8 @@ export const translations: Record<Language, Translations> = {
       copied: 'Answer copied',
       copyFailed: 'Could not copy. Long-press the text to copy it.',
       speakError: 'Could not read this aloud right now.',
+      voiceUnavailable: 'This phone has no voice for this language. Read the answer instead, or add a voice in your phone settings.',
+      listenHint: "Reads aloud using your phone's built-in voice",
     },
     sos: {
       buttonLabel: 'SOS: emergency numbers and share location',
@@ -916,6 +1114,34 @@ export const translations: Record<Language, Translations> = {
       locationDenied: 'Location permission was denied. Allow location in your browser settings.',
       locationUnavailable: 'Could not get your location. Please try again in a moment.',
       locationUnsupported: 'Location is not available on this phone/browser.',
+    },
+    me: {
+      title: "Your profile",
+      openProfile: "Open profile and settings",
+      statsTitle: "Your record",
+      statEntries: "Entries",
+      statDays: "Days logged",
+      statStreak: "Day streak",
+      settingsTitle: "Settings",
+      textSize: "Text size",
+      textNormal: "Normal",
+      textLarge: "Large",
+      textXLarge: "Largest",
+      dailyGoal: "Daily target",
+      dailyGoalHint: "Home shows how close you are each day",
+      goalSave: "Set target",
+      goalRemove: "Remove target",
+      goalSaved: "Target saved",
+      haptics: "Vibrate on save",
+      dataTitle: "Your data",
+      exportCsv: "Download records (CSV)",
+      exportEmpty: "Nothing to download yet",
+      exportDone: "File downloaded",
+      clearChat: "Clear conversation",
+      chatCleared: "Conversation cleared",
+      redoSetup: "Run setup again",
+      helplinesTitle: "Emergency numbers",
+      privacyNote: "Your records are tied only to this phone's session. No login or Aadhaar needed.",
     },
     a11y: {
       skipToContent: 'Skip to main content',
@@ -934,12 +1160,49 @@ export const translations: Record<Language, Translations> = {
       amountPlaceholder: 'e.g. 850',
       sourcePlaceholder: 'e.g. Swiggy, Zomato, Cash',
     },
+    docQa: {
+      title: 'Ask about this document',
+      hint: 'Answers come only from this document, with the line it comes from.',
+      placeholder: 'e.g. How much is cut if I cancel an order?',
+      ask: 'Ask',
+      asking: 'Searching the document…',
+      answer: 'Answer',
+      evidence: 'The document says',
+      page: 'Page {page}',
+      notFound: 'Not found in the document',
+    },
+    grievance: {
+
+      kaampe: 'KaamPe',
+      you: 'You',
+      answerLabel: 'Your answer',
+      answerPlaceholder: 'e.g. ₹3200, 8 days',
+      send: 'Send',
+      dontKnow: "I don't know",
+      reviewTitle: 'Check the details',
+      amount: 'Amount (₹)',
+      duration: 'For how long',
+      days: 'days',
+      weeks: 'weeks',
+      months: 'months',
+      notKnown: 'Not known',
+      platform: 'Platform or employer (optional)',
+      platformHint: "Leave blank if you don't want to name them.",
+      createDraft: 'Create draft',
+      creating: 'Writing the draft…',
+      changeDetails: 'Change details',
+      notSent: 'KaamPe never sends this. Copy it and send it yourself.',
+      fallbackNote: 'The AI was not available, so this simple draft uses only the details you gave.',
+      invalidAmount: 'Enter a valid amount (more than 0, up to 2 decimals).',
+    },
   },
   pa: {
     appName: 'KaamPe',
     tagline: 'Kaam ki baat. Seedhi baat.',
     subTagline: 'ਤੁਹਾਡਾ ਕੰਮ, ਪੈਸੇ ਅਤੇ ਹੱਕਾਂ ਲਈ ਸਾਥੀ।',
     nav: {
+      me: "ਤੁਸੀਂ",
+      meDesc: "ਪ੍ਰੋਫਾਈਲ ਅਤੇ ਸੈਟਿੰਗਾਂ",
       home: 'Home',
       money: 'Money',
       help: 'Help',
@@ -969,6 +1232,9 @@ export const translations: Record<Language, Translations> = {
       },
     },
     home: {
+      goalProgress: "{goal} ਦੇ ਟੀਚੇ ਵਿੱਚੋਂ {left} ਬਾਕੀ",
+      goalReached: "ਅੱਜ ਦਾ ਟੀਚਾ ਪੂਰਾ ਹੋ ਗਿਆ",
+      setGoal: "ਰੋਜ਼ਾਨਾ ਟੀਚਾ ਰੱਖੋ",
       greeting: 'ਸਤਿ ਸ਼੍ਰੀ ਅਕਾਲ 👋',
       questionPrompt: 'ਅੱਜ ਕਿਸ ਚੀਜ਼ ਵਿੱਚ ਮਦਦ ਚਾਹੀਦੀ ਹੈ?',
       inputPlaceholder: 'ਕੰਮ, ਪੈਸੇ, ਹੱਕਾਂ ਜਾਂ ਸੁਰੱਖਿਆ ਬਾਰੇ ਪੁੱਛੋ…',
@@ -995,6 +1261,14 @@ export const translations: Record<Language, Translations> = {
       examplePrompts: ['ਅੱਜ Swiggy ਤੋਂ 850 ਕਮਾਏ, 200 ਪੈਟਰੋਲ ਵਿੱਚ ਗਏ', 'ਅੱਜ ਕਿੰਨਾ ਬਚਿਆ?', 'ਪੰਜਾਬ ਵਿੱਚ ਉਸਾਰੀ ਮਜ਼ਦੂਰਾਂ ਲਈ ਕੋਈ ਸਕੀਮ ਹੈ?'],
     },
     money: {
+      savedEarningToast: "{amount} ਕਮਾਈ ਸੇਵ ਹੋਈ",
+      savedExpenseToast: "{amount} ਖਰਚਾ ਸੇਵ ਹੋਇਆ",
+      undoneToast: "ਐਂਟਰੀ ਹਟਾ ਦਿੱਤੀ",
+      quickAmounts: "ਜਲਦੀ ਰਕਮ ਚੁਣੋ",
+      quickSources: "ਪਲੇਟਫਾਰਮ ਚੁਣੋ",
+      shareWeek: "ਹਫ਼ਤੇ ਦਾ ਹਿਸਾਬ ਭੇਜੋ",
+      shareWeekText: "ਇਸ ਹਫ਼ਤੇ ਦਾ ਹਿਸਾਬ: ਕਮਾਈ {earned}, ਖਰਚਾ {spent}, ਬਚਤ {net}। (KaamPe)",
+      shareCopied: "ਹਿਸਾਬ ਕਾਪੀ ਹੋ ਗਿਆ",
       title: 'Money Tracker',
       netToday: 'ਅੱਜ ਬਾਕੀ',
       earned: 'ਕਮਾਇਆ',
@@ -1187,6 +1461,8 @@ export const translations: Record<Language, Translations> = {
       },
     },
     common: {
+      undo: "ਵਾਪਸ ਲਓ",
+      offline: "ਇੰਟਰਨੈੱਟ ਨਹੀਂ ਹੈ। ਜੁੜਦੇ ਹੀ KaamPe ਫਿਰ ਚੱਲੇਗਾ।",
       error: 'ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
       retry: 'ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ',
       close: 'ਬੰਦ ਕਰੋ',
@@ -1203,6 +1479,12 @@ export const translations: Record<Language, Translations> = {
       errorNoMic: 'ਮਾਈਕ ਨਹੀਂ ਮਿਲਿਆ। ਮਾਈਕ ਚੈੱਕ ਕਰੋ।',
       errorNetwork: 'ਇੰਟਰਨੈੱਟ ਨਹੀਂ ਹੈ, ਇਸ ਲਈ ਬੋਲ ਕੇ ਲਿਖਣਾ ਹੁਣ ਨਹੀਂ ਚੱਲੇਗਾ।',
       errorGeneric: 'ਬੋਲ ਕੇ ਲਿਖਣਾ ਨਹੀਂ ਚੱਲਿਆ। ਟਾਈਪ ਕਰਕੇ ਲਿਖੋ।',
+      transcribing: 'ਆਵਾਜ਼ ਨੂੰ ਟੈਕਸਟ ਵਿੱਚ ਬਦਲ ਰਹੇ ਹਾਂ…',
+      recordingTime: 'ਰਿਕਾਰਡਿੰਗ… {seconds} / {max} ਸਕਿੰਟ',
+      reviewTranscript: 'ਤੁਹਾਡੀ ਆਵਾਜ਼ ਟੈਕਸਟ ਵਿੱਚ ਲਿਖ ਦਿੱਤੀ ਗਈ ਹੈ। ਜਾਂਚ ਕੇ ਬਦਲੋ, ਫਿਰ "ਪੁੱਛੋ" ਦਬਾਓ।',
+      errorUnsupported: 'ਇਸ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਆਵਾਜ਼ ਰਿਕਾਰਡ ਨਹੀਂ ਹੋ ਸਕਦੀ। ਕਿਰਪਾ ਕਰਕੇ ਟਾਈਪ ਕਰੋ।',
+      errorTooShort: 'ਰਿਕਾਰਡਿੰਗ ਬਹੁਤ ਛੋਟੀ ਸੀ। ਮਾਈਕ ਦਬਾ ਕੇ ਬੋਲੋ, ਫਿਰ ਰੋਕੋ।',
+      errorTooLong: 'ਰਿਕਾਰਡਿੰਗ ਬਹੁਤ ਲੰਮੀ ਹੈ। 1 ਮਿੰਟ ਤੋਂ ਛੋਟਾ ਸੁਨੇਹਾ ਬੋਲੋ।',
     },
     speech: {
       listen: 'ਸੁਣੋ',
@@ -1211,6 +1493,8 @@ export const translations: Record<Language, Translations> = {
       copied: 'ਜਵਾਬ ਕਾਪੀ ਹੋ ਗਿਆ',
       copyFailed: 'ਕਾਪੀ ਨਹੀਂ ਹੋਇਆ। ਟੈਕਸਟ ਨੂੰ ਦਬਾ ਕੇ ਕਾਪੀ ਕਰੋ।',
       speakError: 'ਹੁਣ ਆਵਾਜ਼ ਵਿੱਚ ਸੁਣਾਇਆ ਨਹੀਂ ਜਾ ਸਕਿਆ।',
+      voiceUnavailable: 'ਇਸ ਫ਼ੋਨ ਵਿੱਚ ਇਸ ਭਾਸ਼ਾ ਦੀ ਆਵਾਜ਼ ਨਹੀਂ ਹੈ। ਜਵਾਬ ਪੜ੍ਹ ਲਓ, ਜਾਂ ਫ਼ੋਨ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਆਵਾਜ਼ ਜੋੜੋ।',
+      listenHint: 'ਫ਼ੋਨ ਦੀ ਆਪਣੀ ਆਵਾਜ਼ ਨਾਲ ਪੜ੍ਹ ਕੇ ਸੁਣਾਉਂਦਾ ਹੈ',
     },
     sos: {
       buttonLabel: 'SOS: ਐਮਰਜੈਂਸੀ ਨੰਬਰ ਅਤੇ ਲੋਕੇਸ਼ਨ ਭੇਜੋ',
@@ -1226,6 +1510,34 @@ export const translations: Record<Language, Translations> = {
       locationDenied: 'ਲੋਕੇਸ਼ਨ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਮਿਲੀ। ਬ੍ਰਾਊਜ਼ਰ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਲੋਕੇਸ਼ਨ ਚਾਲੂ ਕਰੋ।',
       locationUnavailable: 'ਲੋਕੇਸ਼ਨ ਨਹੀਂ ਮਿਲੀ। ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
       locationUnsupported: 'ਇਸ ਫ਼ੋਨ/ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਲੋਕੇਸ਼ਨ ਨਹੀਂ ਚੱਲਦੀ।',
+    },
+    me: {
+      title: "ਤੁਹਾਡੀ ਪ੍ਰੋਫਾਈਲ",
+      openProfile: "ਪ੍ਰੋਫਾਈਲ ਅਤੇ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹੋ",
+      statsTitle: "ਤੁਹਾਡਾ ਰਿਕਾਰਡ",
+      statEntries: "ਐਂਟਰੀਆਂ",
+      statDays: "ਦਿਨ ਲਿਖੇ",
+      statStreak: "ਲਗਾਤਾਰ ਦਿਨ",
+      settingsTitle: "ਸੈਟਿੰਗਾਂ",
+      textSize: "ਅੱਖਰਾਂ ਦਾ ਆਕਾਰ",
+      textNormal: "ਆਮ",
+      textLarge: "ਵੱਡਾ",
+      textXLarge: "ਸਭ ਤੋਂ ਵੱਡਾ",
+      dailyGoal: "ਰੋਜ਼ਾਨਾ ਟੀਚਾ",
+      dailyGoalHint: "ਹੋਮ ਤੇ ਦਿਖੇਗਾ ਟੀਚੇ ਤੱਕ ਕਿੰਨਾ ਬਾਕੀ ਹੈ",
+      goalSave: "ਟੀਚਾ ਰੱਖੋ",
+      goalRemove: "ਟੀਚਾ ਹਟਾਓ",
+      goalSaved: "ਟੀਚਾ ਸੇਵ ਹੋ ਗਿਆ",
+      haptics: "ਸੇਵ ਤੇ ਹਲਕੀ ਵਾਈਬ੍ਰੇਸ਼ਨ",
+      dataTitle: "ਤੁਹਾਡਾ ਡਾਟਾ",
+      exportCsv: "ਹਿਸਾਬ ਡਾਊਨਲੋਡ ਕਰੋ (CSV)",
+      exportEmpty: "ਅਜੇ ਡਾਊਨਲੋਡ ਕਰਨ ਲਈ ਕੁਝ ਨਹੀਂ",
+      exportDone: "ਫਾਈਲ ਡਾਊਨਲੋਡ ਹੋ ਗਈ",
+      clearChat: "ਗੱਲਬਾਤ ਸਾਫ਼ ਕਰੋ",
+      chatCleared: "ਗੱਲਬਾਤ ਸਾਫ਼ ਹੋ ਗਈ",
+      redoSetup: "ਸੈੱਟਅੱਪ ਦੁਬਾਰਾ ਕਰੋ",
+      helplinesTitle: "ਜ਼ਰੂਰੀ ਨੰਬਰ",
+      privacyNote: "ਤੁਹਾਡਾ ਹਿਸਾਬ ਸਿਰਫ਼ ਇਸ ਫ਼ੋਨ ਦੇ ਸੈਸ਼ਨ ਨਾਲ ਜੁੜਿਆ ਹੈ। ਕੋਈ ਲੌਗਇਨ ਜਾਂ ਆਧਾਰ ਨਹੀਂ ਚਾਹੀਦਾ।",
     },
     a11y: {
       skipToContent: 'ਸਿੱਧਾ ਮੁੱਖ ਸਮੱਗਰੀ ਤੇ ਜਾਓ',
@@ -1243,6 +1555,41 @@ export const translations: Record<Language, Translations> = {
       saveFailed: 'ਸੇਵ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
       amountPlaceholder: 'ਜਿਵੇਂ 850',
       sourcePlaceholder: 'ਜਿਵੇਂ Swiggy, Zomato, Cash',
+    },
+    docQa: {
+      title: 'ਇਸ ਦਸਤਾਵੇਜ਼ ਬਾਰੇ ਪੁੱਛੋ',
+      hint: 'ਜਵਾਬ ਸਿਰਫ਼ ਇਸੇ ਦਸਤਾਵੇਜ਼ ਤੋਂ ਦਿੱਤਾ ਜਾਵੇਗਾ, ਨਾਲ ਦਸਤਾਵੇਜ਼ ਦੀ ਲਾਈਨ ਵੀ।',
+      placeholder: 'ਜਿਵੇਂ: ਆਰਡਰ ਰੱਦ ਕਰਨ \'ਤੇ ਕਿੰਨਾ ਕੱਟੇਗਾ?',
+      ask: 'ਪੁੱਛੋ',
+      asking: 'ਦਸਤਾਵੇਜ਼ ਵਿੱਚ ਲੱਭ ਰਹੇ ਹਾਂ…',
+      answer: 'ਜਵਾਬ',
+      evidence: 'ਦਸਤਾਵੇਜ਼ ਵਿੱਚ ਲਿਖਿਆ ਹੈ',
+      page: 'ਪੰਨਾ {page}',
+      notFound: 'ਦਸਤਾਵੇਜ਼ ਵਿੱਚ ਨਹੀਂ ਮਿਲਿਆ',
+    },
+    grievance: {
+
+      kaampe: 'KaamPe',
+      you: 'ਤੁਸੀਂ',
+      answerLabel: 'ਤੁਹਾਡਾ ਜਵਾਬ',
+      answerPlaceholder: 'ਜਿਵੇਂ: ₹3200, 8 ਦਿਨ',
+      send: 'ਭੇਜੋ',
+      dontKnow: 'ਪਤਾ ਨਹੀਂ',
+      reviewTitle: 'ਜਾਣਕਾਰੀ ਜਾਂਚ ਲਓ',
+      amount: 'ਰਕਮ (₹)',
+      duration: 'ਕਿੰਨੇ ਸਮੇਂ ਤੋਂ',
+      days: 'ਦਿਨ',
+      weeks: 'ਹਫ਼ਤੇ',
+      months: 'ਮਹੀਨੇ',
+      notKnown: 'ਪਤਾ ਨਹੀਂ',
+      platform: 'ਪਲੇਟਫਾਰਮ ਜਾਂ ਮਾਲਕ ਦਾ ਨਾਂ (ਲਾਜ਼ਮੀ ਨਹੀਂ)',
+      platformHint: 'ਨਾਂ ਨਹੀਂ ਲਿਖਣਾ ਤਾਂ ਖਾਲੀ ਛੱਡ ਦਿਓ।',
+      createDraft: 'ਡਰਾਫਟ ਬਣਾਓ',
+      creating: 'ਡਰਾਫਟ ਲਿਖ ਰਹੇ ਹਾਂ…',
+      changeDetails: 'ਜਾਣਕਾਰੀ ਬਦਲੋ',
+      notSent: 'KaamPe ਇਹ ਸੁਨੇਹਾ ਆਪ ਨਹੀਂ ਭੇਜਦਾ। ਕਾਪੀ ਕਰਕੇ ਤੁਸੀਂ ਆਪ ਭੇਜੋ।',
+      fallbackNote: 'AI ਹੁਣੇ ਉਪਲਬਧ ਨਹੀਂ ਸੀ, ਇਸ ਲਈ ਇਹ ਸਿੱਧਾ ਡਰਾਫਟ ਸਿਰਫ਼ ਤੁਹਾਡੀ ਦਿੱਤੀ ਜਾਣਕਾਰੀ ਤੋਂ ਬਣਿਆ ਹੈ।',
+      invalidAmount: 'ਸਹੀ ਰਕਮ ਲਿਖੋ (0 ਤੋਂ ਵੱਧ, 2 ਦਸ਼ਮਲਵ ਤੱਕ)।',
     },
   },
 };

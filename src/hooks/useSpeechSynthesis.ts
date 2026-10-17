@@ -67,6 +67,8 @@ export function useSpeechSynthesis(language: Language) {
   const [supported] = useState(() => getSynth() !== null);
   const [speaking, setSpeaking] = useState(false);
   const [failed, setFailed] = useState(false);
+  /** The device has voices, but none for this language (common for Punjabi). */
+  const [voiceMissing, setVoiceMissing] = useState(false);
   // Token identifying this hook's current read; stale utterance events are ignored.
   const tokenRef = useRef(0);
   const ownsSpeechRef = useRef(false);
@@ -93,12 +95,18 @@ export function useSpeechSynthesis(language: Language) {
     (text: string, lang: Language = language) => {
       const synth = getSynth();
       if (!synth || !text.trim()) return;
-      synth.cancel(); // stop anything else in the app
-      const token = ++tokenRef.current;
       const locale = SPEECH_LOCALES[lang];
       const voice = pickVoice(synth, locale);
-      const chunks = chunkText(text);
       setFailed(false);
+      // Voices loaded but none speaks this language: say so instead of reading it in a wrong-language voice.
+      if (!voice && synth.getVoices().length > 0) {
+        setVoiceMissing(true);
+        return;
+      }
+      setVoiceMissing(false);
+      synth.cancel(); // stop anything else in the app
+      const token = ++tokenRef.current;
+      const chunks = chunkText(text);
 
       const finish = (error: boolean) => {
         if (tokenRef.current !== token) return;
@@ -133,5 +141,5 @@ export function useSpeechSynthesis(language: Language) {
     };
   }, []);
 
-  return { supported, speaking, failed, speak, stop };
+  return { supported, speaking, failed, voiceMissing, speak, stop };
 }

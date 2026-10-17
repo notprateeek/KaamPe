@@ -13,14 +13,14 @@ export const Card: React.FC<CardProps> = ({
   ...props
 }) => {
   const variants = {
-    default: 'bg-surface-1 border border-hairline shadow-subtle',
+    default: 'bg-surface-1 border border-hairline',
     muted: 'bg-surface-2 border border-hairline-soft',
     accent: 'bg-accent-light border border-accent-subtle',
   };
 
   return (
     <div
-      className={`rounded-card p-4 transition-all ${variants[variant]} ${className}`}
+      className={`rounded-card p-4 ${variants[variant]} ${className}`}
       {...props}
     >
       {children}

@@ -1,21 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useApp, TabId } from '../../context/AppContext';
+import { useToast } from '../../components/ui/Toast';
+import { fill, formatPaise } from '../money/moneyUtils';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { VoiceInputButton } from '../../components/voice/VoiceInputButton';
 import { ReadAloudButton } from '../../components/speech/ReadAloudButton';
 import { CopyButton } from '../../components/speech/CopyButton';
+import {
+  GuidedGrievance,
+  type GrievanceDraftResponse,
+  type GrievanceGuideResponse,
+} from '../grievance/GuidedGrievance';
 import type { Language, Translations } from '../../i18n/translations';
 import {
   Send,
-  Plus,
+  Landmark,
   AlertCircle,
   FileText,
   ShieldAlert,
   ExternalLink,
-  Check,
   MessageCircle,
   RotateCcw,
+  Trash2,
+  Target,
+  ChevronRight,
 } from 'lucide-react';
 import type { HelpTab } from '../help/HelpView';
 
@@ -33,7 +42,7 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content?: string;
-  type?: 'text' | 'confirmation' | 'answer' | 'grievance';
+  type?: 'text' | 'confirmation' | 'answer' | 'grievance' | 'grievance_guide';
   confirmation?: MoneyConfirmation;
   directAnswer?: string;
   steps?: string[];
@@ -46,6 +55,10 @@ export interface ChatMessage {
   };
   summary?: string;
   draftMessage?: string;
+  /** Guided complaint state from the server (questions for missing facts, or a draft). */
+  grievance?: GrievanceGuideResponse | GrievanceDraftResponse;
+  /** The worker's message that started the complaint. */
+  grievanceDescription?: string;
   /** Language the message was written in (for read-aloud voice). */
   lang?: Language;
   /** Request failed; `retryText` is the prompt to resend. */
@@ -56,7 +69,8 @@ export interface ChatMessage {
 
 /** Plain-text version of an assistant reply, for read-aloud and copy. */
 function speakableText(msg: ChatMessage, t: Translations): string {
-  if (msg.type === 'confirmation' || msg.isError) return '';
+  // Complaint cards carry their own Listen/Copy actions for the draft.
+  if (msg.type === 'confirmation' || msg.isError || msg.grievance) return '';
   const parts: string[] = [];
   if (msg.directAnswer) parts.push(msg.directAnswer);
   if (msg.steps?.length) parts.push(`${t.ai.whatYouCanDo}:`, ...msg.steps);
@@ -82,21 +96,23 @@ export const HomeView: React.FC<{
   messages: ChatMessage[];
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   onOpenAddEarning: () => void;
-  onNavigateToTab: (tab: 'home' | 'money' | 'help') => void;
+  onNavigateToTab: (tab: TabId) => void;
   onOpenHelp: (tab: HelpTab) => void;
   initialPrompt?: string;
-}> = ({ messages, setMessages, onOpenAddEarning, onNavigateToTab, onOpenHelp, initialPrompt }) => {
-  const { t, profile } = useApp();
+  /** Changes whenever money was added/removed elsewhere, so today's totals refetch. */
+  moneyVersion?: number;
+}> = ({ messages, setMessages, onOpenAddEarning, onNavigateToTab, onOpenHelp, initialPrompt, moneyVersion = 0 }) => {
+  const { t, profile, dailyGoalPaise, buzz } = useApp();
+  const { showToast } = useToast();
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [inputMessage, setInputMessage] = useState(initialPrompt || '');
   const [isSending, setIsSending] = useState(false);
   const [todayMoney, setTodayMoney] = useState<TodaySummary | null>(null);
   // Per-card save state so saving one confirmation doesn't spin every card.
   const [savingIds, setSavingIds] = useState<Record<string, boolean>>({});
   const [saveErrors, setSaveErrors] = useState<Record<string, string>>({});
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [liveStatus, setLiveStatus] = useState('');
-  const toastTimer = useRef<number | undefined>(undefined);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -115,7 +131,15 @@ export const HomeView: React.FC<{
 
   useEffect(() => {
     fetchTodayMoney();
-  }, []);
+  }, [moneyVersion]);
+
+  // Composer grows with the text (up to ~6 lines) instead of scrolling inside two rows.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  }, [inputMessage]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -128,13 +152,6 @@ export const HomeView: React.FC<{
     if (initialPrompt) setInputMessage(initialPrompt);
   }, [initialPrompt]);
 
-  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToastMessage(null), 3000);
-  };
 
   const handleSendMessage = async (msgText?: string) => {
     const textToSend = (msgText || inputMessage).trim();
@@ -183,6 +200,9 @@ export const HomeView: React.FC<{
         breakdown: data.breakdown,
         summary: data.summary,
         draftMessage: data.draftMessage,
+        ...(data.type === 'grievance_guide' || data.type === 'grievance'
+          ? { grievance: data, grievanceDescription: textToSend }
+          : {}),
         lang: profile.language,
         createdAt: Date.now(),
       };
@@ -256,6 +276,7 @@ export const HomeView: React.FC<{
         )
       );
 
+      buzz();
       showToast(t.ai.moneySavedToast);
     } catch {
       setSaveErrors((prev) => ({ ...prev, [msgId]: t.chat.saveFailed }));
@@ -305,36 +326,39 @@ export const HomeView: React.FC<{
 
   const hasMoneyRecords = (todayMoney?.entryCount ?? 0) > 0;
 
+  const earnedPaise = Math.round((todayMoney?.earningsRupees ?? 0) * 100);
+  const goalLeftPaise = dailyGoalPaise ? Math.max(dailyGoalPaise - earnedPaise, 0) : 0;
+  const goalPct = dailyGoalPaise ? Math.min(100, Math.round((earnedPaise * 100) / dailyGoalPaise)) : 0;
+  // Hindi copy is Romanized, so the date uses en-IN for it too
+  const todayLabel = new Date().toLocaleDateString(profile.language === 'pa' ? 'pa-IN' : 'en-IN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
   const quickActionClass =
-    'flex flex-col items-start justify-between gap-3 p-3.5 min-h-[6.5rem] rounded-card text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2';
-  const quickActionPlain = `${quickActionClass} bg-surface-1 border border-hairline hover:border-ink`;
+    'flex items-center gap-3 p-3 min-h-[64px] rounded-subtle text-left bg-surface-1 border border-hairline hover:border-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+  const quickIconClass = 'w-10 h-10 rounded-full flex items-center justify-center shrink-0';
+  const hasThread = messages.length > 0 || isSending;
 
   return (
-    // Mobile: one column (ask → today's money → shortcuts → conversation).
-    // lg+: conversation column on the left, money + shortcuts pinned on the right.
-    <div className="grid gap-5 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-      {/* TOAST NOTIFICATION */}
-      {toastMessage && (
-        <div
-          role="status"
-          className="fixed top-14 md:top-6 left-1/2 -translate-x-1/2 z-50 bg-ink text-white text-xs font-semibold px-4 py-2 rounded-full shadow-float flex items-center gap-2 animate-in fade-in slide-in-from-top-2"
-        >
-          <Check className="w-3.5 h-3.5 text-white" aria-hidden="true" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
+    // Mobile: one column (ask → conversation → today's money → shortcuts).
+    // lg+: ask + conversation on the left, money + shortcuts pinned on the right.
+    <div className="grid gap-6 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
       {/* ASK AREA (Section 10) */}
-      <section className="space-y-4 lg:col-start-1 lg:row-start-1 min-w-0">
+      <section className="space-y-3 lg:col-start-1 lg:row-start-1 min-w-0">
         <div className="pt-1">
-          <p className="text-base md:text-lg font-medium text-ink-muted">{t.home.greeting}</p>
-          <h1 className="mt-0.5 text-[1.875rem] md:text-5xl leading-[1.02] font-extrabold font-wide text-ink">
+          <p className="flex flex-wrap items-baseline gap-x-2 text-[0.9375rem] md:text-base text-ink-muted">
+            <span className="font-semibold text-ink">{t.home.greeting}</span>
+            <span>{todayLabel}</span>
+          </p>
+          <h1 className="mt-1 text-[1.75rem] md:text-[2.75rem] leading-[1.08] font-extrabold font-wide text-ink text-balance">
             {t.home.questionPrompt}
           </h1>
         </div>
 
         {/* LARGE CONVERSATIONAL INPUT — STRONGEST ACTION (Section 10) */}
-        <Card className="bg-surface-1 border-2 border-ink shadow-offset-sm md:shadow-offset p-3 md:p-4">
+        <div className="rounded-card bg-surface-1 border-[1.5px] border-ink p-3 md:p-4 shadow-[0_12px_32px_rgba(23,33,77,0.10)] focus-within:ring-2 focus-within:ring-ink/20">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -347,11 +371,12 @@ export const HomeView: React.FC<{
             </label>
             <textarea
               id="home-chat-input"
+              ref={inputRef}
               rows={2}
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder={t.home.inputPlaceholder}
-              className="w-full bg-transparent text-ink placeholder:text-ink-tertiary text-lg md:text-xl leading-snug resize-none focus:outline-none md:min-h-[80px]"
+              className="w-full bg-transparent text-ink placeholder:text-ink-tertiary text-lg md:text-xl leading-snug resize-none focus:outline-none min-h-[3.5rem] md:min-h-[80px]"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
@@ -362,12 +387,12 @@ export const HomeView: React.FC<{
 
             <div className="flex items-center justify-between gap-3 pt-2 border-t border-hairline-soft">
               <span
-                className={`text-[0.6875rem] min-w-0 ${isListening ? 'text-accent font-semibold' : 'hidden sm:inline text-ink-tertiary'}`}
+                className={`text-xs min-w-0 ${isListening ? 'text-accent font-semibold' : 'hidden sm:inline text-ink-tertiary'}`}
               >
                 {isListening ? t.voice.listening : t.home.languagesHint}
               </span>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 ml-auto">
                 <VoiceInputButton
                   value={inputMessage}
                   onChange={setInputMessage}
@@ -377,7 +402,7 @@ export const HomeView: React.FC<{
                 />
                 <Button
                   type="submit"
-                  variant="accent"
+                  variant="primary"
                   size="lg"
                   disabled={!inputMessage.trim() || isSending}
                   isLoading={isSending}
@@ -389,115 +414,61 @@ export const HomeView: React.FC<{
               </div>
             </div>
           </form>
-        </Card>
-      </section>
-
-      {/* SIDE PANEL: TODAY'S MONEY + SHORTCUTS (Section 10) */}
-      <aside className="space-y-5 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-8 min-w-0">
-        {/* AAJ KA KHATA: ruled ledger card with a red margin line */}
-        <section className="relative overflow-hidden rounded-card border border-hairline bg-surface-1" aria-labelledby="home-khata-title">
-          <span className="absolute inset-y-0 left-12 w-0.5 bg-rule" aria-hidden="true" />
-          <div className="relative pl-16 pr-4 pt-4 pb-3">
-            <h2 id="home-khata-title" className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-              {t.home.todaysMoneyTitle}
-            </h2>
-            {hasMoneyRecords ? (
-              <>
-                <p className="text-5xl leading-none font-extrabold font-wide text-ink mt-1">
-                  {formatCurrency(todayMoney?.netRupees ?? 0)}
-                </p>
-                <p className="text-sm text-ink-muted mt-1">{t.home.netToday}</p>
-              </>
-            ) : (
-              <p className="text-base font-semibold text-ink mt-2">{t.home.noMoneyTitle}</p>
-            )}
-          </div>
-          {hasMoneyRecords && (
-            <dl className="relative ledger-rules border-t border-hairline">
-              <div className="flex items-center justify-between h-10 pl-16 pr-4">
-                <dt className="text-sm text-ink">{t.home.earned}</dt>
-                <dd className="text-base font-bold text-semantic-success">+{formatCurrency(todayMoney?.earningsRupees ?? 0)}</dd>
-              </div>
-              <div className="flex items-center justify-between h-10 pl-16 pr-4">
-                <dt className="text-sm text-ink">{t.home.spent}</dt>
-                <dd className="text-base font-bold text-semantic-error">−{formatCurrency(todayMoney?.expensesRupees ?? 0)}</dd>
-              </div>
-            </dl>
-          )}
-          <div className="relative flex flex-wrap items-center gap-x-2 gap-y-1 pl-16 pr-3 py-3 border-t border-hairline">
-            <Button variant="primary" size="md" onClick={onOpenAddEarning} className="flex-1 whitespace-nowrap">
-              {t.home.addMoneyAction}
-            </Button>
-            <button
-              type="button"
-              onClick={() => onNavigateToTab('money')}
-              className="min-h-[44px] px-2 rounded-subtle text-sm font-bold text-accent whitespace-nowrap hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
-            >
-              {t.home.viewDetails}
-            </button>
-          </div>
-        </section>
-
-        <div>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-ink-muted mb-2 px-1">{t.home.quickActions}</h2>
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => onOpenAddEarning()} className={`${quickActionClass} bg-marigold hover:bg-marigold-hover`}>
-              <Plus className="w-6 h-6 text-ink" aria-hidden="true" />
-              <span className="text-[0.9375rem] font-bold text-ink leading-tight">{t.home.shortcuts.addEarning}</span>
-            </button>
-
-            <button type="button" onClick={() => onOpenHelp('dispute')} className={`${quickActionClass} bg-ink hover:bg-ink-hover`}>
-              <AlertCircle className="w-6 h-6 text-marigold" aria-hidden="true" />
-              <span className="text-[0.9375rem] font-bold text-white leading-tight">{t.home.shortcuts.paymentMissing}</span>
-            </button>
-
-            <button type="button" onClick={() => onOpenHelp('doc')} className={quickActionPlain}>
-              <FileText className="w-6 h-6 text-ink" aria-hidden="true" />
-              <span className="text-[0.9375rem] font-bold text-ink leading-tight">{t.home.shortcuts.explainDoc}</span>
-            </button>
-
-            <button type="button" onClick={() => handleSendMessage(t.home.safetyPrompt)} className={quickActionPlain}>
-              <ShieldAlert className="w-6 h-6 text-accent" aria-hidden="true" />
-              <span className="text-[0.9375rem] font-bold text-ink leading-tight">{t.home.shortcuts.safetyQuestion}</span>
-            </button>
-          </div>
         </div>
-      </aside>
 
-      {/* CONVERSATION THREAD */}
-      <section className="lg:col-start-1 lg:row-start-2 min-w-0" aria-labelledby="home-conversation-heading">
-        {/* Short announcements only — the thread itself is not a live region (too verbose). */}
-        <p role="status" aria-live="polite" className="sr-only">
-          {liveStatus}
-        </p>
-        {messages.length === 0 && !isSending ? (
-          <div className="rounded-card bg-surface-2 border border-hairline p-4 md:p-6">
-            <div className="flex items-center gap-2 mb-1">
-              <MessageCircle className="w-4 h-4 text-accent" aria-hidden="true" />
-              <h2 id="home-conversation-heading" className="text-sm font-semibold text-ink">{t.home.emptyChatTitle}</h2>
-            </div>
-            <p className="text-xs text-ink-muted mb-3">{t.home.emptyChatHint}</p>
-            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+        {/* Example prompts sit right under the composer until the first message */}
+        {!hasThread && (
+          <div>
+            <p className="flex items-center gap-1.5 text-sm text-ink-muted mb-2 px-1">
+              <MessageCircle className="w-4 h-4" aria-hidden="true" />
+              {t.home.emptyChatTitle}. {t.home.emptyChatHint}
+            </p>
+            <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1 md:mx-0 md:px-0 md:flex-wrap md:overflow-visible">
               {t.home.examplePrompts.map((prompt) => (
                 <button
                   type="button"
                   key={prompt}
                   onClick={() => {
                     setInputMessage(prompt);
-                    document.getElementById('home-chat-input')?.focus();
+                    inputRef.current?.focus();
                   }}
-                  className="text-left min-h-[44px] text-sm font-medium text-ink bg-surface-1 border border-dashed border-ink-subtle rounded-full px-3.5 py-2 hover:border-ink hover:bg-surface-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+                  className="shrink-0 max-w-[16rem] md:max-w-none text-left min-h-[44px] text-sm font-medium text-ink bg-surface-1 border border-hairline rounded-subtle px-3.5 py-2 hover:border-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
                   {prompt}
                 </button>
               ))}
             </div>
           </div>
-        ) : (
+        )}
+      </section>
+
+      {/* Short announcements only — the thread itself is not a live region (too verbose). */}
+      <p role="status" aria-live="polite" className="sr-only">
+        {liveStatus}
+      </p>
+
+      {/* CONVERSATION THREAD (rendered once there is something to show, so it leaves no gap) */}
+      {hasThread && (
+      <section className="lg:col-start-1 lg:row-start-2 min-w-0" aria-labelledby="home-conversation-heading">
         <div className="space-y-3">
-          <h2 id="home-conversation-heading" className="text-xs font-bold uppercase tracking-wider text-ink-muted px-1">
-            {t.home.conversation}
-          </h2>
+          <div className="flex items-center justify-between gap-2 px-1">
+            <h2 id="home-conversation-heading" className="text-sm font-semibold text-ink-muted">
+              {t.home.conversation}
+            </h2>
+            {!isSending && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMessages([]);
+                  showToast(t.me.chatCleared);
+                }}
+                className="flex items-center gap-1.5 min-h-[40px] px-2.5 rounded-[10px] text-sm font-semibold text-ink-muted hover:text-ink hover:bg-wash focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
+                {t.me.clearChat}
+              </button>
+            )}
+          </div>
 
           {messages.map((msg) => {
             const isUser = msg.role === 'user';
@@ -579,7 +550,7 @@ export const HomeView: React.FC<{
                     <Card className="bg-surface-1 border border-hairline p-4 md:p-6 space-y-4">
                       <div>
                         <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                          <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
+                          <span className="text-sm font-semibold text-ink-muted">
                             {t.ai.directAnswer}
                           </span>
                           {msg.eligibilityState && (
@@ -620,7 +591,7 @@ export const HomeView: React.FC<{
                       {/* 2-4 Practical Steps */}
                       {msg.steps && msg.steps.length > 0 && (
                         <div className="pt-2 border-t border-hairline-soft">
-                          <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-ink-muted block mb-1.5">
+                          <span className="text-sm font-semibold text-ink-muted block mb-1.5">
                             {t.ai.whatYouCanDo}
                           </span>
                           <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -639,7 +610,7 @@ export const HomeView: React.FC<{
                       {/* Official Grounded Sources (Section 20 & 21) */}
                       {msg.sources && msg.sources.length > 0 && (
                         <div className="pt-2 border-t border-hairline-soft">
-                          <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-ink-muted block mb-1.5">
+                          <span className="text-sm font-semibold text-ink-muted block mb-1.5">
                             {t.ai.sources}
                           </span>
                           <div className="grid gap-1.5 sm:grid-cols-2">
@@ -661,16 +632,14 @@ export const HomeView: React.FC<{
                     </Card>
                   )}
 
-                  {/* GRIEVANCE DRAFT FROM CHAT */}
-                  {msg.type === 'grievance' && msg.draftMessage && (
-                    <Card className="bg-surface-1 border border-hairline p-4 md:p-5 shadow-subtle space-y-2">
-                      {msg.summary && <p className="text-sm font-semibold text-ink">{msg.summary}</p>}
-                      <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-accent block">
-                        {t.help.disputeDraftTitle}
-                      </span>
-                      <p className="text-sm text-ink leading-relaxed whitespace-pre-wrap bg-surface-2 p-3 rounded-xl border border-hairline-soft">
-                        {msg.draftMessage}
-                      </p>
+                  {/* GUIDED COMPLAINT FROM CHAT: asks for missing facts, then an editable draft */}
+                  {msg.grievance && msg.grievanceDescription && (
+                    <Card className="bg-surface-1 border border-hairline p-4 md:p-5 shadow-subtle">
+                      <GuidedGrievance
+                        idPrefix={`chat-${msg.id}`}
+                        description={msg.grievanceDescription}
+                        initial={msg.grievance}
+                      />
                     </Card>
                   )}
 
@@ -701,7 +670,8 @@ export const HomeView: React.FC<{
                   ) : (
                     msg.content &&
                     !msg.confirmation &&
-                    !msg.directAnswer && (
+                    !msg.directAnswer &&
+                    !msg.grievance && (
                       <Card className="bg-surface-1 border border-hairline p-3 text-sm text-ink">
                         {msg.content}
                       </Card>
@@ -738,8 +708,119 @@ export const HomeView: React.FC<{
 
           <div ref={messagesEndRef} />
         </div>
-        )}
       </section>
+      )}
+
+      {/* SIDE PANEL: TODAY'S MONEY + SHORTCUTS (Section 10) */}
+      <aside className="space-y-6 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-10 min-w-0">
+        {/* AAJ KA KHATA: ruled ledger card with a red margin line */}
+        <section className="relative overflow-hidden rounded-card border border-hairline bg-surface-1" aria-labelledby="home-khata-title">
+          <span className="absolute inset-y-0 left-10 w-0.5 bg-rule" aria-hidden="true" />
+          <div className="relative pl-14 pr-4 pt-4 pb-3">
+            <h2 id="home-khata-title" className="text-sm font-semibold text-ink-muted">
+              {t.home.todaysMoneyTitle}
+            </h2>
+            {hasMoneyRecords ? (
+              <p className="flex items-baseline gap-2 mt-1">
+                <span className={`text-[2.75rem] leading-none font-extrabold font-wide tabular-nums ${(todayMoney?.netRupees ?? 0) < 0 ? 'text-semantic-error' : 'text-ink'}`}>
+                  {formatCurrency(todayMoney?.netRupees ?? 0)}
+                </span>
+                <span className="text-sm text-ink-muted">{t.home.netToday}</span>
+              </p>
+            ) : (
+              <p className="text-lg font-semibold text-ink mt-1">{t.home.noMoneyTitle}</p>
+            )}
+
+            {dailyGoalPaise ? (
+              <div className="mt-3">
+                <div
+                  role="progressbar"
+                  aria-label={t.me.dailyGoal}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={goalPct}
+                  className="h-2 rounded-full bg-wash overflow-hidden"
+                >
+                  <div className="h-full rounded-full bg-marigold transition-[width] duration-500" style={{ width: `${goalPct}%` }} />
+                </div>
+                <p className="mt-1.5 flex items-center gap-1.5 text-sm text-ink">
+                  <Target className="w-4 h-4 text-accent shrink-0" aria-hidden="true" />
+                  {goalLeftPaise === 0
+                    ? t.home.goalReached
+                    : fill(t.home.goalProgress, { goal: formatPaise(dailyGoalPaise), left: formatPaise(goalLeftPaise) })}
+                </p>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onNavigateToTab('me')}
+                className="mt-2 -ml-1 flex items-center gap-1.5 min-h-[40px] px-1 rounded text-sm font-semibold text-accent hover:underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <Target className="w-4 h-4" aria-hidden="true" />
+                {t.home.setGoal}
+              </button>
+            )}
+          </div>
+          {hasMoneyRecords && (
+            <dl className="relative ledger-rules border-t border-hairline">
+              <div className="flex items-center justify-between h-10 pl-14 pr-4">
+                <dt className="text-sm text-ink">{t.home.earned}</dt>
+                <dd className="text-base font-bold text-semantic-success tabular-nums">+{formatCurrency(todayMoney?.earningsRupees ?? 0)}</dd>
+              </div>
+              <div className="flex items-center justify-between h-10 pl-14 pr-4">
+                <dt className="text-sm text-ink">{t.home.spent}</dt>
+                <dd className="text-base font-bold text-semantic-error tabular-nums">−{formatCurrency(todayMoney?.expensesRupees ?? 0)}</dd>
+              </div>
+            </dl>
+          )}
+          <div className="relative flex items-center gap-2 pl-14 pr-3 py-3 border-t border-hairline">
+            <Button variant="accent" size="md" onClick={onOpenAddEarning} className="flex-1 whitespace-nowrap">
+              {t.home.addMoneyAction}
+            </Button>
+            <button
+              type="button"
+              onClick={() => onNavigateToTab('money')}
+              aria-label={t.home.viewDetails.replace(/\s*→\s*$/, '')}
+              className="flex items-center justify-center w-12 h-12 shrink-0 rounded-subtle border-[1.5px] border-hairline text-ink hover:border-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <ChevronRight className="w-5 h-5" aria-hidden="true" />
+            </button>
+          </div>
+        </section>
+
+        <div>
+          <h2 className="text-sm font-semibold text-ink-muted mb-2 px-1">{t.home.quickActions}</h2>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => onOpenHelp('schemes')} className={quickActionClass}>
+              <span className={`${quickIconClass} bg-accent-light text-accent`}>
+                <Landmark className="w-5 h-5" aria-hidden="true" />
+              </span>
+              <span className="text-[0.9375rem] font-semibold text-ink leading-tight">{t.help.tabSchemes}</span>
+            </button>
+
+            <button type="button" onClick={() => onOpenHelp('dispute')} className={quickActionClass}>
+              <span className={`${quickIconClass} bg-semantic-error/10 text-semantic-error`}>
+                <AlertCircle className="w-5 h-5" aria-hidden="true" />
+              </span>
+              <span className="text-[0.9375rem] font-semibold text-ink leading-tight">{t.home.shortcuts.paymentMissing}</span>
+            </button>
+
+            <button type="button" onClick={() => onOpenHelp('doc')} className={quickActionClass}>
+              <span className={`${quickIconClass} bg-wash text-ink`}>
+                <FileText className="w-5 h-5" aria-hidden="true" />
+              </span>
+              <span className="text-[0.9375rem] font-semibold text-ink leading-tight">{t.home.shortcuts.explainDoc}</span>
+            </button>
+
+            <button type="button" onClick={() => handleSendMessage(t.home.safetyPrompt)} className={quickActionClass}>
+              <span className={`${quickIconClass} bg-semantic-success/10 text-semantic-success`}>
+                <ShieldAlert className="w-5 h-5" aria-hidden="true" />
+              </span>
+              <span className="text-[0.9375rem] font-semibold text-ink leading-tight">{t.home.shortcuts.safetyQuestion}</span>
+            </button>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 };

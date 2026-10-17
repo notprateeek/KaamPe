@@ -7,10 +7,14 @@ import { Dialog } from '../../components/ui/Dialog';
 import { WeeklyBarChart } from '../../components/charts/WeeklyBarChart';
 import { todayLocalISODate } from '../../lib/date';
 import { PlatformBreakdown } from './PlatformBreakdown';
+import { AmountChips, SourceChips } from './QuickChips';
+import { useToast } from '../../components/ui/Toast';
+import { WORKER_PLATFORMS } from '../../constants/workerIcons';
 import {
   MoneyEntry,
   MoneySummary,
   computePlatformStats,
+  deleteMoneyEntry,
   fetchMoneyEntries,
   fetchMoneySummary,
   fill,
@@ -18,7 +22,7 @@ import {
   formatPaiseCompact,
   parseRupeesToPaise,
 } from './moneyUtils';
-import { Trash2, ArrowUpRight, ArrowDownLeft, Calendar, BarChart3 } from 'lucide-react';
+import { Trash2, ArrowUpRight, ArrowDownLeft, Calendar, BarChart3, Share2 } from 'lucide-react';
 
 type ExpenseCategory = 'Fuel' | 'Food' | 'Maintenance' | 'Mobile/data' | 'Equipment' | 'Other';
 const EXPENSE_CATEGORIES: ExpenseCategory[] = ['Fuel', 'Food', 'Maintenance', 'Mobile/data', 'Equipment', 'Other'];
@@ -35,7 +39,8 @@ async function readServerError(res: Response, fallback: string): Promise<string>
 }
 
 export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdded }) => {
-  const { t, profile } = useApp();
+  const { t, profile, buzz } = useApp();
+  const { showToast } = useToast();
   const [data, setData] = useState<MoneySummary | null>(null);
   const [entries, setEntries] = useState<MoneyEntry[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,9 +117,29 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
         return;
       }
 
+      const saved = await res.json().catch(() => null);
+      const entryId: string | undefined = saved?.entry?.id;
+      const kind = openForm;
       setOpenForm(null);
+      buzz();
       await fetchAll();
       onEntryAdded?.();
+      showToast(
+        fill(kind === 'earning' ? t.money.savedEarningToast : t.money.savedExpenseToast, { amount: formatPaise(paise) }),
+        entryId
+          ? {
+              label: t.common.undo,
+              onAction: () =>
+                deleteMoneyEntry(entryId)
+                  .then(async () => {
+                    await fetchAll();
+                    onEntryAdded?.();
+                    showToast(t.money.undoneToast);
+                  })
+                  .catch(() => showToast(t.money.errorDelete)),
+            }
+          : undefined
+      );
     } catch {
       setFormError(t.money.errorSaveFailed);
     } finally {
@@ -138,6 +163,7 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
       setPendingDelete(null);
       await fetchAll();
       onEntryAdded?.();
+      showToast(t.money.undoneToast);
     } catch {
       setDeleteError(t.money.errorDelete);
     } finally {
@@ -161,6 +187,28 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
     () => (entries ? computePlatformStats(entries, weekDays.map((d) => d.date)) : null),
     [entries, weekDays]
   );
+
+  const shareWeek = async () => {
+    const text = fill(t.money.shareWeekText, {
+      earned: formatPaise(data?.weekly.totalEarningsPaise ?? 0),
+      spent: formatPaise(data?.weekly.totalExpensesPaise ?? 0),
+      net: formatPaise(data?.weekly.netPaise ?? 0),
+    });
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch {
+        /* cancelled: fall through to copy */
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(t.money.shareCopied);
+    } catch {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+    }
+  };
 
   const entryLabel = (entry: MoneyEntry) =>
     entry.type === 'earning'
@@ -219,10 +267,11 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
       required
     />
   );
+  const amountChips = <AmountChips value={amount} onPick={setAmount} label={t.money.quickAmounts} />;
 
   return (
     <div className="space-y-5 md:space-y-6">
-      <h1 className="text-3xl md:text-5xl leading-none font-extrabold font-wide text-ink">{t.money.title}</h1>
+      <h1 className="pt-1 text-[1.75rem] md:text-[2.75rem] leading-tight font-extrabold font-wide text-ink">{t.money.title}</h1>
 
       {loadFailed && (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-card border border-semantic-error/30 bg-semantic-error/5 p-3">
@@ -240,10 +289,10 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
 
       <div className="grid gap-5 md:gap-6 lg:grid-cols-5 lg:items-start">
         {/* HERO: Net Today */}
-        <Card className="bg-surface-1 border-2 border-ink shadow-offset-sm md:shadow-offset p-5 md:p-7 lg:col-span-3">
-          <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">{t.money.netToday}</span>
+        <Card className="bg-surface-1 border-[1.5px] border-ink p-5 md:p-7 lg:col-span-3 shadow-[0_12px_32px_rgba(23,33,77,0.10)]">
+          <span className="text-sm font-semibold text-ink-muted">{t.money.netToday}</span>
           <div
-            className={`text-6xl md:text-7xl leading-none font-extrabold font-wide my-2 ${todayNet >= 0 ? 'text-ink' : 'text-semantic-error'}`}
+            className={`text-[3.5rem] md:text-7xl leading-none font-extrabold font-wide tabular-nums my-2 ${todayNet >= 0 ? 'text-ink' : 'text-semantic-error'}`}
           >
             {formatPaise(todayNet)}
           </div>
@@ -260,7 +309,7 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mt-6 sm:max-w-md">
+          <div className="grid grid-cols-2 gap-2 mt-5 sm:max-w-md">
             <Button variant="accent" size="lg" onClick={() => openEntryForm('earning')}>
               <span>{t.money.addEarningBtn}</span>
             </Button>
@@ -277,12 +326,19 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
               <Calendar className="w-4 h-4 text-accent" aria-hidden="true" />
               <span>{t.money.thisWeek}</span>
             </h2>
-            <span className="text-xs font-bold text-ink">
-              {`${t.money.weekNet}: ${formatPaise(data?.weekly.netPaise ?? 0)}`}
-            </span>
+            <button
+              type="button"
+              onClick={shareWeek}
+              disabled={!weekHasEntries}
+              aria-label={t.money.shareWeek}
+              title={t.money.shareWeek}
+              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-full text-accent hover:bg-accent-light disabled:opacity-40 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <Share2 className="w-5 h-5" aria-hidden="true" />
+            </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-xs bg-surface-2 p-3 rounded-xl border border-hairline-soft">
+          <div className="grid grid-cols-2 gap-2 text-xs bg-surface-2 p-3 rounded-subtle">
             <div>
               <span className="text-ink-muted block">{t.money.earned}</span>
               <span className="font-semibold text-semantic-success text-sm">
@@ -296,10 +352,13 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
               </span>
             </div>
           </div>
+          <p className="mt-2 px-1 text-sm font-semibold text-ink">
+            {`${t.money.weekNet}: ${formatPaise(data?.weekly.netPaise ?? 0)}`}
+          </p>
 
           {weekDays.length > 0 && (
             <figure className="mt-4">
-              <figcaption className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted mb-2 flex items-center gap-1.5">
+              <figcaption className="text-xs font-semibold text-ink-muted mb-2 flex items-center gap-1.5">
                 <BarChart3 className="w-3.5 h-3.5" aria-hidden="true" />
                 {t.money.chartTitle}
               </figcaption>
@@ -387,6 +446,7 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
       <Dialog open={openForm === 'earning'} onClose={() => setOpenForm(null)} title={t.money.earningModalTitle}>
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {amountField}
+          {amountChips}
           <Input
             id="money-source"
             label={t.money.sourceLabel}
@@ -396,6 +456,7 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
             value={source}
             onChange={(e) => setSource(e.target.value)}
           />
+          <SourceChips options={WORKER_PLATFORMS[profile.workerType]} value={source} onPick={setSource} label={t.money.quickSources} />
           {sharedFields}
           {formButtons}
         </form>
@@ -405,10 +466,11 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
       <Dialog open={openForm === 'expense'} onClose={() => setOpenForm(null)} title={t.money.expenseModalTitle}>
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {amountField}
+          {amountChips}
           <div>
             <label
               htmlFor="expense-category-select"
-              className="block text-xs font-semibold uppercase tracking-wider text-ink-muted mb-1.5"
+              className="block text-sm font-semibold text-ink mb-1.5"
             >
               {t.money.categoryLabel}
             </label>
@@ -416,7 +478,7 @@ export const MoneyView: React.FC<{ onEntryAdded?: () => void }> = ({ onEntryAdde
               id="expense-category-select"
               value={category}
               onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
-              className="w-full bg-surface-1 text-ink border border-hairline rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+              className="w-full min-h-[48px] bg-surface-1 text-ink border-[1.5px] border-hairline rounded-subtle px-3.5 py-2.5 text-base sm:text-sm focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink"
             >
               {EXPENSE_CATEGORIES.map((c) => (
                 <option key={c} value={c}>

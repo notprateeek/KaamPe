@@ -7,6 +7,8 @@ import { VoiceInputButton } from '../../components/voice/VoiceInputButton';
 import { ReadAloudButton, actionButtonClass } from '../../components/speech/ReadAloudButton';
 import { CopyButton } from '../../components/speech/CopyButton';
 import { SchemeEligibility } from '../schemes/SchemeEligibility';
+import { DocumentQuestion } from '../documents/DocumentQuestion';
+import { GuidedGrievance, type GrievanceGuideResponse } from '../grievance/GuidedGrievance';
 import { computePlatformStats, fetchMoneyEntries, fetchMoneySummary, fill, formatPaise } from '../money/moneyUtils';
 import {
   FileText,
@@ -17,7 +19,6 @@ import {
   Calendar,
   IndianRupee,
   ArrowRight,
-  Download,
   Landmark,
   PenLine,
 } from 'lucide-react';
@@ -69,14 +70,16 @@ export const HelpView: React.FC<{
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<DocExplanation | null>(null);
+  /** Id of the excerpts stored for follow-up questions (absent if nothing could be kept). */
+  const [documentId, setDocumentId] = useState<string | null>(null);
   const [docQuestion, setDocQuestion] = useState('');
 
   // Dispute state
   const [disputeInput, setDisputeInput] = useState('');
   const [isGeneratingDispute, setIsGeneratingDispute] = useState(false);
   const [disputeError, setDisputeError] = useState<string | null>(null);
-  const [disputeSummary, setDisputeSummary] = useState<string | null>(null);
-  const [draftMessage, setDraftMessage] = useState<string>('');
+  /** Guided complaint started from the form; `key` restarts it on a new submission. */
+  const [guide, setGuide] = useState<{ key: number; description: string; draftContext?: string; initial: GrievanceGuideResponse } | null>(null);
   const [evidence, setEvidence] = useState<Evidence>({ status: 'off' });
   const disputeInputRef = useRef<HTMLTextAreaElement>(null);
   const [focusDisputeInput, setFocusDisputeInput] = useState(false);
@@ -130,6 +133,7 @@ export const HelpView: React.FC<{
     setFile(selected);
     setDocError(null);
     setExplanation(null);
+    setDocumentId(null);
   };
 
   const handleUploadDocument = async () => {
@@ -153,6 +157,7 @@ export const HelpView: React.FC<{
         return;
       }
       setExplanation(data.explanation);
+      setDocumentId(typeof data.documentId === 'string' ? data.documentId : null);
     } catch {
       setDocError(t.help.docUploadFailed);
     } finally {
@@ -231,55 +236,39 @@ export const HelpView: React.FC<{
 
   const handleGenerateDispute = async (e: React.FormEvent) => {
     e.preventDefault();
-    const facts = disputeInput.trim();
+    const facts = disputeInput.trim().slice(0, MAX_CHAT_CHARS);
     if (!facts) return;
-
-    const message = (evidence.status === 'ready' ? `${facts}\n\n${evidence.text}` : facts).slice(0, MAX_CHAT_CHARS);
 
     setIsGeneratingDispute(true);
     setDisputeError(null);
 
     try {
-      const res = await fetch('/api/ai/chat', {
+      // Facts are read only from the worker's own words; earnings evidence is added when drafting.
+      const res = await fetch('/api/ai/grievance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ message, language: profile.language }),
+        body: JSON.stringify({ action: 'collect', description: facts, language: profile.language }),
       });
       const data = await res.json().catch(() => null);
 
-      if (!res.ok) {
+      if (!res.ok || data?.type !== 'grievance_guide') {
         const fallback = res.status === 429 ? t.help.rateLimited : res.status === 400 ? t.help.disputeInvalid : t.common.error;
         setDisputeError(readError(data, fallback));
         return;
       }
 
-      // The chat endpoint classifies intent; anything but a grievance yields no draft
-      if (data?.intent !== 'grievance' || typeof data.draftMessage !== 'string' || !data.draftMessage.trim()) {
-        setDisputeError(t.help.disputeNotGrievance);
-        return;
-      }
-
-      setDisputeSummary(typeof data.summary === 'string' && data.summary ? data.summary : t.help.disputeDefaultSummary);
-      setDraftMessage(data.draftMessage);
+      setGuide({
+        key: Date.now(),
+        description: facts,
+        draftContext: evidence.status === 'ready' ? evidence.text : undefined,
+        initial: data as GrievanceGuideResponse,
+      });
     } catch {
       setDisputeError(t.common.error);
     } finally {
       setIsGeneratingDispute(false);
     }
-  };
-
-  const handleDownloadTxt = () => {
-    if (!draftMessage) return;
-    const blob = new Blob([draftMessage], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `KaamPe_Grievance_${Date.now()}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const tabMeta: Record<HelpTab, { label: string; icon: React.ElementType }> = {
@@ -489,8 +478,11 @@ export const HelpView: React.FC<{
                   </Button>
                 </Card>
 
-                {/* Follow-up question to KaamPe chat */}
-                {onNavigateToChatWithPrompt && (
+                {/* Questions answered from this document, with the supporting excerpt */}
+                {documentId && <DocumentQuestion key={documentId} documentId={documentId} />}
+
+                {/* Without stored excerpts, fall back to a general question in KaamPe chat */}
+                {!documentId && onNavigateToChatWithPrompt && (
                   <Card className="bg-accent-light border border-accent-subtle p-3.5">
                     <h3 className="text-xs font-bold text-accent">{t.help.docAskKaamPe}</h3>
                     <p className="text-[11px] text-ink-muted mb-2">{t.help.docAskHint}</p>
@@ -622,47 +614,17 @@ export const HelpView: React.FC<{
               </form>
             </Card>
 
-            {/* DRAFT RESULT */}
-            {!draftMessage && <ResultPlaceholder icon={AlertCircle} text={t.help.resultPlaceholderDispute} />}
-            {draftMessage && (
-              <div className="space-y-3 animate-in fade-in duration-200">
-                {disputeSummary && (
-                  <Card className="bg-surface-2 border border-hairline-soft p-3.5">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-ink-muted mb-1">
-                      {t.help.disputeProblemTitle}
-                    </h3>
-                    <p className="text-xs font-semibold text-ink">{disputeSummary}</p>
-                  </Card>
-                )}
-
-                <Card className="bg-surface-1 border border-hairline p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-2">
-                    <label htmlFor="dispute-draft" className="text-xs font-bold uppercase tracking-wider text-accent">
-                      {t.help.disputeDraftTitle}
-                    </label>
-                    <span id="dispute-draft-hint" className="text-[11px] text-ink-muted">
-                      ({t.help.draftEditable})
-                    </span>
-                  </div>
-
-                  <textarea
-                    id="dispute-draft"
-                    rows={8}
-                    value={draftMessage}
-                    aria-describedby="dispute-draft-hint"
-                    onChange={(e) => setDraftMessage(e.target.value)}
-                    className="w-full bg-surface-2 text-ink border border-hairline-soft rounded-xl p-3 text-base sm:text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent leading-relaxed"
-                  />
-
-                  <div className="flex flex-wrap items-center gap-2 mt-3">
-                    <CopyButton text={draftMessage} label={t.help.copy} copiedLabel={t.help.copied} />
-                    <ReadAloudButton text={draftMessage} />
-                    <button type="button" onClick={handleDownloadTxt} className={actionButtonClass}>
-                      <Download className="w-4 h-4" aria-hidden="true" />
-                      <span>{t.help.downloadTxt}</span>
-                    </button>
-                  </div>
-                </Card>
+            {/* GUIDED COMPLAINT: missing-fact questions, then an editable draft */}
+            {!guide && <ResultPlaceholder icon={AlertCircle} text={t.help.resultPlaceholderDispute} />}
+            {guide && (
+              <div className="animate-in fade-in duration-200">
+                <GuidedGrievance
+                  key={guide.key}
+                  idPrefix="dispute"
+                  description={guide.description}
+                  draftContext={guide.draftContext}
+                  initial={guide.initial}
+                />
               </div>
             )}
           </div>

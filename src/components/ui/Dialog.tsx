@@ -51,7 +51,7 @@ export const Dialog: React.FC<DialogProps> = ({
       aria-labelledby={titleId}
       onCancel={handleCancel}
       onClick={handleBackdropClick}
-      className={`w-[calc(100%-2rem)] max-w-sm rounded-card border border-hairline bg-surface-1 p-0 text-ink shadow-float backdrop:bg-black/40 ${className}`}
+      className={`w-[calc(100%-2rem)] max-w-sm rounded-card border border-hairline bg-surface-1 p-0 text-ink shadow-float backdrop:bg-ink/50 backdrop:backdrop-blur-[2px] ${className}`}
     >
       {open && (
         <div className="p-5">
