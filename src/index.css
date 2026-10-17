@@ -7,20 +7,59 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Large-text preference (AppContext → <html class="text-large">). Everything
+   sized in rem scales with it; layouts are max-w-md so 390px still fits. */
+html.text-large {
+  font-size: 118.75%;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
   min-height: 100dvh;
-  background-color: #f5f1ec;
-  color: #111111;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Devanagari", "Noto Sans Gurmukhi", sans-serif;
+  background-color: theme('colors.canvas');
+  color: theme('colors.ink.DEFAULT');
+  font-family: theme('fontFamily.sans');
   overflow-x: hidden;
 }
 
-/* Accessible focus ring adhering to WCAG 2.2 */
+/* Accessible focus ring (WCAG 2.2 2.4.7 / 2.4.11) for anything without its own ring */
 :focus-visible {
-  outline: 2px solid #d9531e;
+  outline: 2px solid theme('colors.accent.DEFAULT');
   outline-offset: 2px;
+}
+
+/* Skip link: hidden until focused, then pinned top-left above everything */
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -100px;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  border-radius: theme('borderRadius.subtle');
+  background: theme('colors.ink.DEFAULT');
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 0.75rem;
+  outline: 2px solid theme('colors.accent.DEFAULT');
+  outline-offset: 2px;
+}
+
+/* Respect the OS "reduce motion" setting (WCAG 2.3.3) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Custom scrollbars */
@@ -32,9 +71,42 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d3cec6;
+  background: theme('colors.hairline.DEFAULT');
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #9c9fa5;
+  background: theme('colors.ink.subtle');
+}
+
+/* "Neel Bahi" motifs */
+@layer utilities {
+  /* Wide cut of Anek for display numbers and headings */
+  .font-wide {
+    font-stretch: 125%;
+  }
+
+  /* Block-print dot band (marigold cloth, indigo dots) */
+  .block-print {
+    background-color: theme('colors.marigold.DEFAULT');
+    background-image: radial-gradient(circle, theme('colors.ink.DEFAULT') 1.8px, transparent 2.3px);
+    background-size: 12px 12px;
+  }
+
+  /* Ruled ledger paper: one rule every 2.5rem, matching ledger row height */
+  .ledger-rules {
+    background-image: repeating-linear-gradient(
+      theme('colors.surface.1') 0 calc(2.5rem - 1px),
+      theme('colors.hairline.DEFAULT') calc(2.5rem - 1px) 2.5rem
+    );
+  }
+
+  /* Receipt slip with perforated top and bottom edges */
+  .receipt {
+    -webkit-mask:
+      radial-gradient(circle 6px at 50% 0, transparent 98%, #000) 0 0 / 16px 51% repeat-x,
+      radial-gradient(circle 6px at 50% 100%, transparent 98%, #000) 0 100% / 16px 51% repeat-x;
+    mask:
+      radial-gradient(circle 6px at 50% 0, transparent 98%, #000) 0 0 / 16px 51% repeat-x,
+      radial-gradient(circle 6px at 50% 100%, transparent 98%, #000) 0 100% / 16px 51% repeat-x;
+  }
 }

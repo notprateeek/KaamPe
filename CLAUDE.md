@@ -22,13 +22,15 @@ npm run test:e2e      # Playwright (tests/**/*.spec.ts); auto-starts both server
 npx playwright test tests/a11y.spec.ts       # single e2e file
 ```
 
-Production: `NODE_ENV=production npm run server` serves `dist/` and SPA-falls back to `index.html`.
+Production: `NODE_ENV=production npm run server` serves `dist/` and SPA-falls back to `index.html` (unknown `/api/*` returns JSON 404). Deploy: `Dockerfile` + `cloudbuild.yaml` (Cloud Run) or `render.yaml`; CI in `.github/workflows/ci.yml`.
 
-Environment (`.env`, see `.env.example`): `PORT`, `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.8-flash`), `SESSION_SECRET`. `tests/live_ai.test.ts` makes a real Gemini call and silently skips if no key is set. Requires a Node version with built-in `node:sqlite`.
+Environment (`.env`, see `.env.example`; validated by Zod in `server/config/env.ts`): `PORT`, `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.8-flash`), `CORS_ORIGIN`, `TRUST_PROXY_HOPS`, `RATE_LIMIT_*` (limits are high outside production so e2e doesn't trip them). Vite's `/api` proxy target port can be overridden with `API_PORT`. `tests/live_ai.test.ts` makes a real Gemini call and silently skips if no key is set. Requires a Node version with built-in `node:sqlite`.
 
 ## Architecture
 
-**Backend (`server/`, Express, ESM).** Imports between server files use `.js` extensions (tsx resolves them to `.ts`) — keep that convention.
+**Backend (`server/`, Express, ESM).** Imports between server files use `.js` extensions (tsx resolves them to `.ts`) — keep that convention. `server/index.ts` exports `createApp()` (tests start it on an ephemeral port) and only listens when run directly. It applies helmet (strict CSP: `script-src 'self'`, so no inline scripts in `index.html`), rate limiters (`middleware/rateLimit.ts`, stricter on `/api/ai` and `/api/document`), and `middleware/errorHandler.ts`. Error responses use `sendApiError` with shape `{ error: <localized text>, code }` and never expose `err.message`.
+
+**`shared/`** holds data used by both server and client: `helplines.ts` (SOS dialog + safety-prompt reference) and `schemes.ts` (curated schemes, income limits in paise).
 
 - **Guest sessions, no auth.** `server/middleware/session.ts` runs on every `/api` route: reads `X-Session-ID` header or `kaampe_session_id` cookie (must match `^[a-zA-Z0-9_-]{16,64}$`, else a new `kp_…` id is generated), upserts a `sessions` row, and sets `req.sessionId` / `req.sessionProfile`. All data queries must be scoped by `session_id`; `tests/security_e2e.spec.ts` checks that one session can't read/delete another's entries (expects 403). E2E/API tests set identity via the `X-Session-ID` header.
 - **Database.** `server/db/index.ts` opens SQLite via `node:sqlite` `DatabaseSync` at `data/kaampe.db` (WAL), and creates the schema inline with `CREATE TABLE IF NOT EXISTS` on import — there are no migrations. Tables: `sessions`, `money_entries`, `conversations`, `messages`. Importing the db module (including from tests) creates the file.
@@ -39,14 +41,19 @@ Environment (`.env`, see `.env.example`): `PORT`, `GEMINI_API_KEY`, `GEMINI_MODE
   - `scheme` / `rights` → Gemini with Google Search grounding; every source URL (grounding chunks and model-returned) is filtered through `isTrustedGovernmentDomain` (allowlist `TRUSTED_OFFICIAL_DOMAINS`). Prompts forbid asserting definite eligibility.
   - `grievance` → editable draft built only from facts the user gave.
   - `safety` / `general` → conversational guidance.
-  Each call sets `thinkingConfig.thinkingBudget` (0 for classification, low for synthesis). User-facing strings in server responses are hard-coded per language (`hi`/`pa`/`en` branches).
-- `POST /api/document/explain` takes a multer upload (field `document`, PDF/JPG/PNG, ≤10MB, mime+extension checked) into `uploads_tmp/`, sends it inline as base64 to Gemini.
+  Each call sets thinking via `thinkingConfigFor` (`thinkingLevel: LOW` on Gemini 3 models; `MINIMAL` is rejected by gemini-3.8-flash). User-facing strings in server responses are hard-coded per language (`hi`/`pa`/`en` branches).
+  All prompts are built in `server/services/ai/prompts.ts`: user text goes through `wrapUserInput` and every prompt includes `SAFETY_RULES`. Gemini calls go through `services/ai/client.ts` (timeouts, one retry, `thinkingConfigFor`). `services/ai/safety.ts` masks Aadhaar/account/OTP numbers before they reach the model and drops non-helpline phone numbers from answers.
+- `POST /api/ai/schemes/eligibility` is deterministic (no LLM): `server/services/schemes/match.ts` matches a profile against `shared/schemes.ts`; "unknown" answers never exclude a scheme.
+- Money amounts are parsed with `parseRupeeAmount`/`validateEntryDate` (calculator.ts); "today" and the weekly window are in IST.
+- `POST /api/document/explain` takes a multer upload (field `document`, PDF/JPG/PNG, ≤10MB, mime+extension+magic bytes checked) into `uploads_tmp/`, sends it inline as base64 to Gemini.
 
 **Frontend (`src/`, React 18 + Tailwind, `@/` → `src/`).**
 
 - No router: `App.tsx` switches views on `activeTab` (`home` | `money` | `help`) from `AppContext`. Home is the chat; Help can deep-link into chat with a prefilled prompt.
 - `context/AppContext.tsx` holds the profile (cached in `localStorage` as `kaampe_profile`; onboarding flag in `kaampe_onboarded`), syncs with `GET /api/session` on mount, and exposes `t` — the active language's strings from `i18n/translations.ts`. All UI copy must be added to the `Translations` interface and all three languages.
 - Components call `fetch('/api/...', { credentials: 'include' })` directly; `@tanstack/react-query` is a dependency but unused.
+- Money and Help views are lazy-loaded. Modals use `components/ui/Dialog.tsx` (native `<dialog>`). Reusable speech pieces: `components/voice/VoiceInputButton`, `components/speech/{ReadAloudButton,CopyButton}`. Use `lib/date.ts` `todayLocalISODate()` for date defaults, never `toISOString()`.
+- `tests/i18n.test.ts` enforces identical keys, no empty strings and matching `{placeholders}` across hi/en/pa. Hindi copy is intentionally Romanized (Hinglish).
 - Layout is designed for a 390px mobile viewport (`max-w-md` shell, bottom nav); Playwright runs at 390×844.
 
 ## Design system

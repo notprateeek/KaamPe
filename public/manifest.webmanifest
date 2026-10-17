@@ -1,0 +1,16 @@
+{
+  "name": "KaamPe — Kaam ki baat. Seedhi baat.",
+  "short_name": "KaamPe",
+  "description": "AI companion for informal workers: earnings, rights, schemes and help.",
+  "lang": "hi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EEF0F7",
+  "theme_color": "#EEF0F7",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

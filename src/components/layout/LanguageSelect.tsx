@@ -26,7 +26,7 @@ export const LanguageSelect: React.FC<{ id: string; showLabel?: boolean; classNa
         htmlFor={id}
         className={
           showLabel
-            ? 'block text-[11px] font-semibold uppercase tracking-wider text-ink-muted mb-1.5'
+            ? 'block text-[0.6875rem] font-semibold uppercase tracking-wider text-ink-muted mb-1.5'
             : 'sr-only'
         }
       >
@@ -41,7 +41,7 @@ export const LanguageSelect: React.FC<{ id: string; showLabel?: boolean; classNa
           id={id}
           value={profile.language}
           onChange={(e) => updateLanguage(e.target.value as Language)}
-          className="w-full appearance-none bg-surface-1 text-ink text-sm font-medium border border-hairline rounded-subtle pl-8 pr-8 py-2 min-h-[40px] cursor-pointer hover:border-ink-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+          className="w-full appearance-none bg-surface-1 text-ink text-sm font-semibold border-[1.5px] border-hairline rounded-full pl-8 pr-7 py-2 min-h-[44px] cursor-pointer hover:border-ink focus:outline-none focus:border-ink focus:ring-1 focus:ring-ink"
         >
           {LANGUAGES.map((lang) => (
             <option key={lang.code} value={lang.code}>

@@ -15,5 +15,3 @@ services:
         value: gemini-3.8-flash
       - key: GEMINI_API_KEY
         sync: false
-      - key: SESSION_SECRET
-        generateValue: true

@@ -1,0 +1,22 @@
+# gcloud builds submit --config cloudbuild.yaml --substitutions=_REGION=asia-south1
+substitutions:
+  _REGION: asia-south1
+  _SERVICE: kaampe
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/kaampe/${_SERVICE}:$BUILD_ID', '.']
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/kaampe/${_SERVICE}:$BUILD_ID']
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/kaampe/${_SERVICE}:$BUILD_ID
+      - --region=${_REGION}
+      - --allow-unauthenticated
+      - --set-secrets=GEMINI_API_KEY=gemini-api-key:latest
+      - --set-env-vars=NODE_ENV=production
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/kaampe/${_SERVICE}:$BUILD_ID

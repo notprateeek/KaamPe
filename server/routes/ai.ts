@@ -9,29 +9,123 @@ import {
   isTrustedGovernmentDomain,
   parseModelJson,
 } from '../services/ai/gemini.js';
+import { generateWithRetry, getModelName, thinkingConfigFor, TIMEOUTS } from '../services/ai/client.js';
+import {
+  buildGroundedPrompt,
+  buildGuidancePrompt,
+  wrapUserInput,
+} from '../services/ai/prompts.js';
+import {
+  redactSensitive,
+  findUnlistedPhoneNumbers,
+  localizedHelplines,
+  safetyFallback,
+  generalFallback,
+} from '../services/ai/safety.js';
+import {
+  matchSchemes,
+  localizeMatches,
+  schemeDisclaimer,
+  schemeReferenceForPrompt,
+  type LocalizedSchemeMatch,
+} from '../services/schemes/match.js';
+import { helplineReference } from '../../shared/helplines.js';
 import { db } from '../db/index.js';
+import { sendApiError } from '../middleware/errorHandler.js';
+import { startGrievanceFromChat } from '../services/grievance/guide.js';
+import grievanceRouter from './grievance.js';
+import voiceRouter from './voice.js';
 import {
   rupeesToPaise,
   paiseToRupees,
+  parseRupeeAmount,
+  validateEntryDate,
+  MoneyValidationError,
   calculateDailySummary,
-  calculateWeeklySummary,
   getTodayDateString,
   MoneyEntryRecord,
 } from '../services/money/calculator.js';
 
 const router = Router();
 
-// Zod schemas
+// POST /api/ai/grievance (guided complaint) and POST /api/ai/transcribe (voice -> text).
+router.use(grievanceRouter);
+router.use(voiceRouter);
+
+type Lang = 'hi' | 'en' | 'pa';
+
+function toLang(value: unknown): Lang {
+  return value === 'en' || value === 'pa' ? value : 'hi';
+}
+
+// ---------------------------------------------------------------------------
+// Localized user-facing strings
+// ---------------------------------------------------------------------------
+
+const MESSAGES = {
+  invalidMessage: {
+    hi: 'Sandesh sahi nahi hai. Kripya 1 se 2000 akshar ka sawaal likhein.',
+    en: 'The message is not valid. Please type a question of 1 to 2000 characters.',
+    pa: 'ਸੁਨੇਹਾ ਸਹੀ ਨਹੀਂ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ 1 ਤੋਂ 2000 ਅੱਖਰਾਂ ਦਾ ਸਵਾਲ ਲਿਖੋ।',
+  },
+  rateLimited: {
+    hi: 'Kripya agla sandesh bhejne se pehle thoda rukein.',
+    en: 'Please wait a moment before sending another message.',
+    pa: 'ਕਿਰਪਾ ਕਰਕੇ ਅਗਲਾ ਸੁਨੇਹਾ ਭੇਜਣ ਤੋਂ ਪਹਿਲਾਂ ਥੋੜ੍ਹਾ ਰੁਕੋ।',
+  },
+  chatError: {
+    hi: 'AI abhi connect nahi ho paya. Kripya thodi der baad dobara koshish karein.',
+    en: 'Could not connect to the AI service. Please try again shortly.',
+    pa: 'AI ਹੁਣੇ ਜੁੜ ਨਹੀਂ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+  },
+  chatErrorAdvice: {
+    hi: 'Network issue ki wajah se AI abhi connect nahi ho paya. Tab tak aap Money tab mein hisaab dekh sakte hain.',
+    en: 'A network issue stopped the AI from connecting. Meanwhile you can still use the Money tab.',
+    pa: 'ਨੈੱਟਵਰਕ ਦੀ ਸਮੱਸਿਆ ਕਾਰਨ AI ਜੁੜ ਨਹੀਂ ਸਕਿਆ। ਤਦ ਤੱਕ ਤੁਸੀਂ Money ਟੈਬ ਵਿੱਚ ਹਿਸਾਬ ਦੇਖ ਸਕਦੇ ਹੋ।',
+  },
+  confirmPrompt: {
+    hi: 'Kya yeh aaj ke hisab mein add karein?',
+    en: "Add to today's money?",
+    pa: 'ਕੀ ਇਹ ਅੱਜ ਦੇ ਹਿਸਾਬ ਵਿੱਚ ਜੋੜਨਾ ਹੈ?',
+  },
+  invalidConfirmation: {
+    hi: 'Hisaab ki jaankari sahi nahi hai. Kripya dobara koshish karein.',
+    en: 'The money details are not valid. Please try again.',
+    pa: 'ਹਿਸਾਬ ਦੀ ਜਾਣਕਾਰੀ ਸਹੀ ਨਹੀਂ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+  },
+  saved: {
+    hi: 'Paisa jud gaya!',
+    en: "Saved to today's money!",
+    pa: 'ਪੈਸਾ ਦਰਜ ਹੋ ਗਿਆ!',
+  },
+  privacyNotice: {
+    hi: 'Aapke sandesh mein lamba number (Aadhaar/bank/OTP jaisa) tha — humne use chhupa diya. Aise number kisi ko na bhejein.',
+    en: 'Your message contained a long number (like Aadhaar, bank or OTP) — we hid it. Never share such numbers with anyone.',
+    pa: 'ਤੁਹਾਡੇ ਸੁਨੇਹੇ ਵਿੱਚ ਲੰਮਾ ਨੰਬਰ (ਆਧਾਰ/ਬੈਂਕ/OTP ਵਰਗਾ) ਸੀ — ਅਸੀਂ ਉਸਨੂੰ ਲੁਕਾ ਦਿੱਤਾ। ਅਜਿਹੇ ਨੰਬਰ ਕਿਸੇ ਨੂੰ ਨਾ ਭੇਜੋ।',
+  },
+  invalidEligibility: {
+    hi: 'Di gayi jaankari sahi nahi hai. Umar 14 se 100 ke beech aur kamai 0 ya zyada honi chahiye.',
+    en: 'Some details are not valid. Age must be between 14 and 100 and income must be 0 or more.',
+    pa: 'ਦਿੱਤੀ ਜਾਣਕਾਰੀ ਸਹੀ ਨਹੀਂ ਹੈ। ਉਮਰ 14 ਤੋਂ 100 ਵਿਚਕਾਰ ਅਤੇ ਕਮਾਈ 0 ਜਾਂ ਵੱਧ ਹੋਣੀ ਚਾਹੀਦੀ ਹੈ।',
+  },
+} satisfies Record<string, Record<Lang, string>>;
+
+// ---------------------------------------------------------------------------
+// Request schemas
+// ---------------------------------------------------------------------------
+
 const ChatRequestSchema = z.object({
   message: z.string().trim().min(1).max(2000),
-  conversationId: z.string().optional(),
+  conversationId: z.string().max(64).optional(),
   language: z.enum(['hi', 'en', 'pa']).optional(),
 });
+
+const AmountInputSchema = z.union([z.number(), z.string().max(20)]);
 
 const ConfirmMoneySchema = z.object({
   earning: z
     .object({
-      amount: z.number().positive(),
+      amount: AmountInputSchema,
       source: z.string().optional().nullable(),
       date: z.string().optional(),
     })
@@ -39,7 +133,7 @@ const ConfirmMoneySchema = z.object({
     .nullable(),
   expense: z
     .object({
-      amount: z.number().positive(),
+      amount: AmountInputSchema,
       category: z.enum(['Fuel', 'Food', 'Maintenance', 'Mobile/data', 'Equipment', 'Other']),
       date: z.string().optional(),
     })
@@ -47,125 +141,172 @@ const ConfirmMoneySchema = z.object({
     .nullable(),
 });
 
-// Simple rate limiter for AI calls
+const TriStateSchema = z.enum(['yes', 'no', 'unknown']).default('unknown');
+
+export const EligibilityRequestSchema = z.object({
+  age: z.number().int().min(14).max(100).nullish(),
+  monthlyIncomeRupees: z.number().finite().min(0).max(10_000_000).nullish(),
+  workerType: z.string().trim().max(40).nullish(),
+  state: z.string().trim().max(50).nullish(),
+  hasEpfo: TriStateSchema,
+  hasEsic: TriStateSchema,
+  isIncomeTaxPayer: TriStateSchema,
+  language: z.enum(['hi', 'en', 'pa']).optional(),
+});
+
+// ---------------------------------------------------------------------------
+// Model output schemas: anything that does not match falls back deterministically
+// ---------------------------------------------------------------------------
+
+const StepsSchema = z.array(z.string().trim().min(1).max(400)).max(8);
+
+const GroundedOutputSchema = z.object({
+  directAnswer: z.string().trim().min(1).max(1500),
+  steps: StepsSchema.optional().default([]),
+  eligibilityState: z.string().optional(),
+});
+
+const GuidanceOutputSchema = z.object({
+  directAnswer: z.string().trim().min(1).max(1000),
+  steps: StepsSchema.min(1),
+});
+
+const ALLOWED_ELIGIBILITY_STATES = [
+  'Likely relevant',
+  'Possibly relevant',
+  'Need more information',
+  "Doesn't appear relevant",
+  'Unable to verify',
+];
+
+// Simple per-session debounce for AI calls (global rate limiting lives in server/index.ts).
 const lastRequestTime = new Map<string, number>();
 
 function rateLimitAi(sessionId: string): boolean {
   const now = Date.now();
   const last = lastRequestTime.get(sessionId) || 0;
-  if (now - last < 100) {
-    // 100ms debounce
-    return false;
-  }
+  if (now - last < 100) return false;
   lastRequestTime.set(sessionId, now);
+  if (lastRequestTime.size > 10_000) {
+    for (const [id, t] of lastRequestTime) if (now - t > 60_000) lastRequestTime.delete(id);
+  }
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// POST /api/ai/chat
+// ---------------------------------------------------------------------------
 
 router.post('/chat', async (req, res) => {
   const parsed = ChatRequestSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: 'Invalid message', details: parsed.error.errors });
+    const lang = toLang(req.body?.language ?? req.sessionProfile?.language);
+    return res.status(400).json({ error: MESSAGES.invalidMessage[lang], code: 'validation_failed', details: parsed.error.errors });
   }
 
-  const { message } = parsed.data;
   const sessionId = req.sessionId;
   const sessionProfile = req.sessionProfile;
-  const language = parsed.data.language || sessionProfile?.language || 'hi';
+  const language = toLang(parsed.data.language || sessionProfile?.language);
   const workerType = sessionProfile?.workerType || 'delivery';
   const state = sessionProfile?.state || 'Punjab';
 
   if (!rateLimitAi(sessionId)) {
-    return res.status(429).json({ error: 'Please wait a moment before sending another message.' });
+    return res.status(429).json({ error: MESSAGES.rateLimited[language], code: 'rate_limited' });
   }
 
+  // Aadhaar/bank/OTP-like numbers never reach the model or the database.
+  const message = redactSensitive(parsed.data.message);
+  const redacted = message !== parsed.data.message;
+
   try {
-    // 1. Extract intent
-    const intentResult = await extractIntent(message, language);
-
-    // 2. Handle 'record_money' intent -> Return confirmation card WITHOUT saving
-    if (intentResult.intent === 'record_money' && (intentResult.earning || intentResult.expense)) {
-      const confirmation = prepareMoneyConfirmation(intentResult.earning, intentResult.expense);
-      return res.json({
-        type: 'confirmation',
-        intent: 'record_money',
-        message: language === 'hi' 
-          ? 'Kya yeh aaj ke hisab mein add karein?' 
-          : language === 'pa' 
-          ? 'ਕੀ ਇਹ ਅੱਜ ਦੇ ਹਿਸਾਬ ਵਿੱਚ ਜੋੜਨਾ ਹੈ?' 
-          : 'Add to today\'s money?',
-        confirmation,
-        rawIntent: intentResult,
-      });
-    }
-
-    // 3. Handle 'ask_money' intent -> Strict deterministic calculation from DB
-    if (intentResult.intent === 'ask_money') {
-      const moneyAnswer = answerMoneyQuestion(sessionId, language);
-      return res.json({
-        type: 'answer',
-        intent: 'ask_money',
-        directAnswer: moneyAnswer.directAnswer,
-        steps: moneyAnswer.steps,
-        breakdown: moneyAnswer.breakdown,
-      });
-    }
-
-    // 4. Handle 'grievance' intent -> Fact extraction + editable draft strictly using user facts
-    if (intentResult.intent === 'grievance') {
-      const draftResult = await generateGrievanceDraft(message, language, intentResult.dispute);
-      return res.json({
-        type: 'grievance',
-        intent: 'grievance',
-        ...draftResult,
-      });
-    }
-
-    // 5. Handle 'scheme' or 'rights' -> Google Search Grounding with official government source filtering
-    if (intentResult.intent === 'scheme' || intentResult.intent === 'rights') {
-      const groundedResult = await generateGroundedAnswer({
-        query: message,
-        language,
-        workerType,
-        state,
-        topic: intentResult.intent,
-      });
-      return res.json({
-        type: 'answer',
-        intent: intentResult.intent,
-        ...groundedResult,
-      });
-    }
-
-    // 6. Handle 'safety' or 'general' -> Practical, non-diagnostic guidance
-    const generalResult = await generateConversationalGuidance({
-      query: message,
-      language,
-      workerType,
-      state,
-      isSafety: intentResult.intent === 'safety',
-    });
-
-    return res.json({
-      type: 'answer',
-      intent: intentResult.intent,
-      ...generalResult,
-    });
+    const body: Record<string, unknown> = await routeChat({ message, sessionId, language, workerType, state });
+    if (redacted) body.privacyNotice = MESSAGES.privacyNotice[language];
+    const conversationId = sessionProfile?.id
+      ? persistTurn(sessionId, parsed.data.conversationId, message, body)
+      : undefined;
+    return res.json(conversationId ? { ...body, conversationId } : body);
   } catch (err: any) {
-    console.error('[AI Chat Error]', err.message || err);
+    console.error('[AI Chat Error]', err?.message || err);
     return res.status(500).json({
-      error: 'AI service temporarily unavailable. Please try again shortly.',
-      fallbackAdvice: language === 'hi' 
-        ? 'Network issue ki wajah se AI abhi connect nahi ho paya. Kripya thodi der baad koshish karein.' 
-        : 'Could not connect to AI service. Please try again shortly.',
+      error: MESSAGES.chatError[language],
+      code: 'internal_error',
+      fallbackAdvice: MESSAGES.chatErrorAdvice[language],
     });
   }
 });
 
-// POST /api/ai/confirm-money - Saves confirmed transactions into database
+async function routeChat(params: {
+  message: string;
+  sessionId: string;
+  language: Lang;
+  workerType: string;
+  state: string;
+}): Promise<Record<string, unknown>> {
+  const { message, sessionId, language, workerType, state } = params;
+
+  // 1. Classify intent (Gemini structured output, regex fallback).
+  const intentResult = await extractIntent(message, language);
+
+  // 2. record_money -> confirmation card only; nothing is saved until /confirm-money.
+  if (intentResult.intent === 'record_money' && (intentResult.earning || intentResult.expense)) {
+    const confirmation = prepareMoneyConfirmation(intentResult.earning, intentResult.expense);
+    return {
+      type: 'confirmation',
+      intent: 'record_money',
+      message: MESSAGES.confirmPrompt[language],
+      confirmation,
+      rawIntent: intentResult,
+    };
+  }
+
+  // 3. ask_money -> deterministic answer from the DB, no LLM.
+  if (intentResult.intent === 'ask_money') {
+    const moneyAnswer = answerMoneyQuestion(sessionId, language);
+    return {
+      type: 'answer',
+      intent: 'ask_money',
+      directAnswer: moneyAnswer.directAnswer,
+      steps: moneyAnswer.steps,
+      breakdown: moneyAnswer.breakdown,
+    };
+  }
+
+  // 4. grievance -> ask for missing facts, or an editable draft built only from user facts.
+  if (intentResult.intent === 'grievance') {
+    return { ...(await startGrievanceFromChat(message, language, intentResult.dispute)) };
+  }
+
+  // 5. scheme / rights -> Google Search grounding, official sources only.
+  if (intentResult.intent === 'scheme' || intentResult.intent === 'rights') {
+    const groundedResult = await generateGroundedAnswer({
+      query: message,
+      language,
+      workerType,
+      state,
+      topic: intentResult.intent,
+    });
+    return { type: 'answer', intent: intentResult.intent, ...groundedResult };
+  }
+
+  // 6. safety / general -> practical guidance, helplines from the trusted list only.
+  const generalResult = await generateConversationalGuidance({
+    query: message,
+    language,
+    workerType,
+    isSafety: intentResult.intent === 'safety',
+  });
+  return { type: 'answer', intent: intentResult.intent, ...generalResult };
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/ai/confirm-money - saves confirmed transactions
+// ---------------------------------------------------------------------------
+
 router.post('/confirm-money', (req, res) => {
+  const language = toLang(req.sessionProfile?.language);
   const parsed = ConfirmMoneySchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: 'Invalid confirmation payload', details: parsed.error.errors });
+    return sendApiError(req, res, 400, 'validation_failed', { message: MESSAGES.invalidConfirmation[language] });
   }
 
   const sessionId = req.sessionId;
@@ -175,31 +316,46 @@ router.post('/confirm-money', (req, res) => {
 
   const { earning, expense } = parsed.data;
 
-  if (earning && earning.amount > 0) {
-    const amountPaise = rupeesToPaise(earning.amount);
+  // Validate everything before writing anything, so a bad expense never leaves a half-saved pair.
+  let earningPaise = 0;
+  let expensePaise = 0;
+  try {
+    if (earning) earningPaise = parseRupeeAmount(earning.amount);
+    if (expense) expensePaise = parseRupeeAmount(expense.amount);
+  } catch (err) {
+    if (err instanceof MoneyValidationError) {
+      return sendApiError(req, res, 400, 'validation_failed', { message: MESSAGES.invalidConfirmation[language] });
+    }
+    throw err;
+  }
+  const earningDate = earning?.date || today;
+  const expenseDate = expense?.date || today;
+  if ((earning && validateEntryDate(earningDate, today)) || (expense && validateEntryDate(expenseDate, today))) {
+    return sendApiError(req, res, 400, 'validation_failed', { message: MESSAGES.invalidConfirmation[language] });
+  }
+
+  if (earning && earningPaise > 0) {
     const id = 'entry_' + crypto.randomUUID();
-    const source = earning.source || 'Earning';
+    const source = (earning.source || 'Earning').slice(0, 60);
     db.prepare(`
       INSERT INTO money_entries (id, session_id, type, amount_paise, category_or_source, note, date, created_at, updated_at)
       VALUES (?, ?, 'earning', ?, ?, ?, ?, ?, ?)
-    `).run(id, sessionId, amountPaise, source, null, earning.date || today, now, now);
+    `).run(id, sessionId, earningPaise, source, null, earningDate, now, now);
 
-    savedEntries.push({ id, type: 'earning', amountRupees: earning.amount, source });
+    savedEntries.push({ id, type: 'earning', amountRupees: paiseToRupees(earningPaise), source });
   }
 
-  if (expense && expense.amount > 0) {
-    const amountPaise = rupeesToPaise(expense.amount);
+  if (expense && expensePaise > 0) {
     const id = 'entry_' + crypto.randomUUID();
     const category = expense.category || 'Other';
     db.prepare(`
       INSERT INTO money_entries (id, session_id, type, amount_paise, category_or_source, note, date, created_at, updated_at)
       VALUES (?, ?, 'expense', ?, ?, ?, ?, ?, ?)
-    `).run(id, sessionId, amountPaise, category, null, expense.date || today, now, now);
+    `).run(id, sessionId, expensePaise, category, null, expenseDate, now, now);
 
-    savedEntries.push({ id, type: 'expense', amountRupees: expense.amount, category });
+    savedEntries.push({ id, type: 'expense', amountRupees: paiseToRupees(expensePaise), category });
   }
 
-  // Calculate updated summary
   const rows = db.prepare('SELECT * FROM money_entries WHERE session_id = ?').all(sessionId) as any[];
   const allEntries: MoneyEntryRecord[] = rows.map((r) => ({
     id: r.id,
@@ -219,70 +375,86 @@ router.post('/confirm-money', (req, res) => {
     success: true,
     savedEntries,
     updatedToday,
-    message: req.sessionProfile?.language === 'hi' 
-      ? 'Paisa jud gaya!' 
-      : req.sessionProfile?.language === 'pa' 
-      ? 'ਪੈਸਾ ਦਰਜ ਹੋ ਗਿਆ!' 
-      : 'Saved to today\'s money!',
+    message: MESSAGES.saved[language],
   });
 });
 
-/**
- * Generates grounded answers for government schemes and rights
- */
+// ---------------------------------------------------------------------------
+// POST /api/ai/schemes/eligibility - deterministic scheme pre-check (no LLM)
+// ---------------------------------------------------------------------------
+
+router.post('/schemes/eligibility', (req, res) => {
+  const parsed = EligibilityRequestSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    const lang = toLang(req.body?.language ?? req.sessionProfile?.language);
+    return sendApiError(req, res, 400, 'validation_failed', { message: MESSAGES.invalidEligibility[lang] });
+  }
+
+  const input = parsed.data;
+  const language = toLang(input.language ?? req.sessionProfile?.language);
+  const matches = matchSchemes({
+    age: input.age ?? undefined,
+    monthlyIncomePaise:
+      input.monthlyIncomeRupees === null || input.monthlyIncomeRupees === undefined
+        ? undefined
+        : rupeesToPaise(input.monthlyIncomeRupees),
+    workerType: input.workerType || req.sessionProfile?.workerType,
+    state: input.state || req.sessionProfile?.state,
+    hasEpfo: input.hasEpfo,
+    hasEsic: input.hasEsic,
+    isIncomeTaxPayer: input.isIncomeTaxPayer,
+  });
+
+  res.json({
+    matches: localizeMatches(matches, language),
+    disclaimer: schemeDisclaimer(language),
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Scheme / rights answers with Google Search grounding
+// ---------------------------------------------------------------------------
+
+/** Removes any URL from model text that is not on the official allowlist. */
+function stripUntrustedUrls(text: string): string {
+  return text.replace(/\bhttps?:\/\/[^\s)\]"'<>]+/gi, (url) => (isTrustedGovernmentDomain(url) ? url : '')).replace(/\s{2,}/g, ' ').trim();
+}
+
+function relatedSchemesFor(topic: 'scheme' | 'rights', workerType: string, state: string, language: Lang): LocalizedSchemeMatch[] {
+  if (topic !== 'scheme') return [];
+  return localizeMatches(matchSchemes({ workerType, state }), language).slice(0, 4);
+}
+
 async function generateGroundedAnswer(params: {
   query: string;
-  language: string;
+  language: Lang;
   workerType: string;
   state: string;
   topic: 'scheme' | 'rights';
 }) {
-  const { query, language, workerType, state } = params;
-  const systemInstruction = `
-You are KaamPe, an assistant for informal workers in India.
-User profile:
-- Worker Type: ${workerType}
-- State: ${state}
-- Language: ${language}
-
-Rules:
-1. Provide short sentences, practical information, no legal jargon.
-2. For government schemes or legal rights, never say "You are definitely eligible" unless 100% verified. Use "Aapke diye gaye information ke hisaab se yeh scheme relevant ho sakti hai."
-3. If reliable official evidence is missing, state honestly:
-   "Mujhe abhi iska reliable official source nahi mila. Main guess nahi karunga."
-4. Reply with ONLY a JSON object (no prose before or after):
-   {
-     "directAnswer": "1-3 concise sentences",
-     "steps": ["step 1", "step 2", "step 3"],
-     "eligibilityState": "Likely relevant" | "Possibly relevant" | "Need more information" | "Unable to verify"
-   }
-Base the answer on official government sources (e.g. .gov.in, .nic.in) found via search. Do not write URLs; sources are attached separately.
-`;
+  const { query, language, workerType, state, topic } = params;
+  const relatedSchemes = relatedSchemesFor(topic, workerType, state, language);
+  const schemeReference = topic === 'scheme' ? schemeReferenceForPrompt(matchSchemes({ workerType, state })) : '';
+  const withRelated = <T extends object>(result: T) => (relatedSchemes.length ? { ...result, relatedSchemes } : result);
 
   try {
     const ai = getGenAI();
-    const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-    // Attempt with Google Search grounding
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: query,
-      config: {
-        systemInstruction,
-        // Medium thinking for scheme/rights synthesis
-        thinkingConfig: {
-          thinkingBudget: 1,
+    const modelName = getModelName();
+    const response = await generateWithRetry(
+      ai,
+      {
+        model: modelName,
+        contents: wrapUserInput(query),
+        config: {
+          systemInstruction: buildGroundedPrompt({ workerType, state, language, topic, schemeReference }),
+          thinkingConfig: thinkingConfigFor(modelName, 'low'),
+          // No responseMimeType: JSON mode is not guaranteed to combine with the search tool,
+          // so the JSON is parsed from text instead.
+          tools: [{ googleSearch: {} }],
         },
-        // No responseMimeType: JSON mode is not guaranteed to combine with the search tool,
-        // so the JSON is parsed from text instead.
-        tools: [
-          {
-            googleSearch: {},
-          },
-        ],
       },
-    });
-
-    const parsed = parseModelJson(response.text);
+      { timeoutMs: TIMEOUTS.grounded, retries: 1 }
+    );
 
     // Source links come only from grounding metadata, never from model-written text.
     // Grounding URIs are Google redirect links, so trust is decided on the reported source domain.
@@ -290,28 +462,36 @@ Base the answer on official government sources (e.g. .gov.in, .nic.in) found via
     const chunks = (response as any).candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
     for (const chunk of chunks) {
       const web = chunk?.web;
-      if (!web?.uri) continue;
+      if (!web?.uri || typeof web.uri !== 'string') continue;
       const domain = String(web.domain || web.title || '').trim();
       const trusted = isTrustedGovernmentDomain(web.uri) || isTrustedGovernmentDomain(`https://${domain}`);
       if (trusted && !sources.some((s) => s.url === web.uri)) {
-        sources.push({ title: web.title || domain, url: web.uri });
+        sources.push({ title: String(web.title || domain), url: web.uri });
       }
     }
 
-    const ALLOWED_STATES = ['Likely relevant', 'Possibly relevant', 'Need more information', "Doesn't appear relevant", 'Unable to verify'];
-    if (sources.length === 0 || typeof parsed.directAnswer !== 'string' || !parsed.directAnswer.trim()) {
-      return getUnverifiedAnswer(language, state);
+    const output = GroundedOutputSchema.safeParse(parseModelJson(response.text));
+    if (sources.length === 0 || !output.success) {
+      return withRelated(getUnverifiedAnswer(language, state));
     }
 
-    return {
-      directAnswer: parsed.directAnswer,
-      steps: Array.isArray(parsed.steps) ? parsed.steps.filter((s: unknown) => typeof s === 'string').slice(0, 4) : [],
+    const directAnswer = stripUntrustedUrls(output.data.directAnswer);
+    const steps = output.data.steps.map(stripUntrustedUrls).filter(Boolean).slice(0, 4);
+    if (!directAnswer || findUnlistedPhoneNumbers([directAnswer, ...steps], query).length > 0) {
+      return withRelated(getUnverifiedAnswer(language, state));
+    }
+
+    return withRelated({
+      directAnswer,
+      steps,
       sources,
-      eligibilityState: ALLOWED_STATES.includes(parsed.eligibilityState) ? parsed.eligibilityState : 'Need more information',
-    };
+      eligibilityState: ALLOWED_ELIGIBILITY_STATES.includes(output.data.eligibilityState ?? '')
+        ? output.data.eligibilityState
+        : 'Need more information',
+    });
   } catch (err) {
     console.error('[Grounded Answer Error]', (err as Error).message);
-    return getUnverifiedAnswer(language, state);
+    return withRelated(getUnverifiedAnswer(language, state));
   }
 }
 
@@ -319,7 +499,7 @@ Base the answer on official government sources (e.g. .gov.in, .nic.in) found via
  * Honest response when no trusted official evidence was found. Links are from the
  * application-controlled registry (where to check), not presented as evidence for a claim.
  */
-function getUnverifiedAnswer(language: string, state: string) {
+function getUnverifiedAnswer(language: Lang, state: string) {
   const registry = state.toLowerCase().includes('punjab')
     ? [
         { title: 'Punjab BOCW Welfare Board', url: 'https://bocw.punjab.gov.in' },
@@ -342,7 +522,7 @@ function getUnverifiedAnswer(language: string, state: string) {
   if (language === 'pa') {
     return {
       directAnswer: 'ਮੈਨੂੰ ਹੁਣੇ ਇਸਦਾ ਭਰੋਸੇਯੋਗ ਸਰਕਾਰੀ ਸਰੋਤ ਨਹੀਂ ਮਿਲਿਆ। ਮੈਂ ਅੰਦਾਜ਼ਾ ਨਹੀਂ ਲਗਾਵਾਂਗਾ।',
-      steps: ['ਹੇਠਾਂ ਦਿੱਤੇ ਸਰਕਾਰੀ ਪੋਰਟਲ \'ਤੇ ਖੁਦ ਜਾਣਕਾਰੀ ਦੇਖੋ।', 'ਨੇੜਲੇ ਸੇਵਾ ਕੇਂਦਰ \'ਤੇ ਪੁੱਛ ਸਕਦੇ ਹੋ।'],
+      steps: ['ਹੇਠਾਂ ਦਿੱਤੇ ਸਰਕਾਰੀ ਪੋਰਟਲ \'ਤੇ ਖੁਦ ਜਾਣਕਾਰੀ ਦੇਖੋ।', 'ਨੇੜਲੇ CSC / ਸੇਵਾ ਕੇਂਦਰ \'ਤੇ ਪੁੱਛ ਸਕਦੇ ਹੋ।'],
       sources: registry,
       eligibilityState: 'Unable to verify',
     };
@@ -355,180 +535,115 @@ function getUnverifiedAnswer(language: string, state: string) {
   };
 }
 
-/**
- * Generates practical conversational guidance for safety and general questions
- */
+// ---------------------------------------------------------------------------
+// Safety / general guidance
+// ---------------------------------------------------------------------------
+
 async function generateConversationalGuidance(params: {
   query: string;
-  language: string;
+  language: Lang;
   workerType: string;
-  state: string;
   isSafety: boolean;
 }) {
   const { query, language, workerType, isSafety } = params;
-  const systemInstruction = `
-You are KaamPe, an empathetic, highly practical AI assistant for informal workers in India.
-Worker type: ${workerType}
-Language: ${language}
-Topic is safety: ${isSafety}
-
-Rules:
-1. Respond in ${language === 'hi' ? 'simple Hindi (Hinglish/Devanagari)' : language === 'pa' ? 'Punjabi' : 'clear, simple English'}.
-2. Keep it short, practical, and empathetic. No technical jargon.
-3. If it's a safety question, give practical actionable tips (hydration, reflective gear, helmet, reporting to supervisor).
-   NEVER diagnose medical conditions. Do not fabricate emergency phone numbers.
-4. Output strict JSON:
-   {
-     "directAnswer": "1-3 short practical sentences",
-     "steps": ["tip 1", "tip 2", "tip 3"]
-   }
-`;
+  const fallback = () => (isSafety ? safetyFallback(language) : generalFallback(language));
 
   try {
     const ai = getGenAI();
-    const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: query,
-      config: {
-        systemInstruction,
-        thinkingConfig: { thinkingBudget: 0 },
-        responseMimeType: 'application/json',
+    const modelName = getModelName();
+    const response = await generateWithRetry(
+      ai,
+      {
+        model: modelName,
+        contents: wrapUserInput(query),
+        config: {
+          systemInstruction: buildGuidancePrompt({
+            workerType,
+            language,
+            isSafety,
+            helplineReference: helplineReference(language),
+          }),
+          thinkingConfig: thinkingConfigFor(modelName, isSafety ? 'low' : 'minimal'),
+          responseMimeType: 'application/json',
+        },
       },
-    });
+      { timeoutMs: TIMEOUTS.synthesis, retries: 1 }
+    );
 
-    const parsed = parseModelJson(response.text);
-    return {
-      directAnswer: parsed.directAnswer || 'Aapki safety aur kaam hamari pehli priority hai.',
-      steps: parsed.steps || ['Dhyan se kaam karein aur safety guidelines follow karein.'],
-    };
-  } catch (err) {
-    if (isSafety) {
-      return {
-        directAnswer: language === 'hi' 
-          ? 'Garmi ya mushkil mausam mein kaam karte waqt paani peete rahein aur zaruri safety gear pehnein.'
-          : 'Stay hydrated, take short shade breaks, and ensure you wear safety gear properly.',
-        steps: [
-          'Paani aur ORS/nimbu paani saath rakhein.',
-          'Har 1-2 ghante mein 5 minute chhaon mein aaram karein.',
-          'Agar chakkar aaye to turant kaam rok kar saathi worker ya helpline par sampark karein.',
-        ],
-      };
+    const output = GuidanceOutputSchema.safeParse(parseModelJson(response.text));
+    if (!output.success) return fallback();
+
+    const steps = output.data.steps.slice(0, 5);
+    // Any phone number not on the trusted helpline list means the answer is not safe to show.
+    if (findUnlistedPhoneNumbers([output.data.directAnswer, ...steps], query).length > 0) {
+      return fallback();
     }
-    return {
-      directAnswer: language === 'hi' ? 'Namaste! Kaam ya paise se juda koi bhi sawaal poochhein.' : 'Hello! Ask any question about work or earnings.',
-      steps: ['Apni aaj ki kamai add karein.', 'Payment dispute ya document samajhne ke liye Help tab dekhein.'],
-    };
+
+    return isSafety
+      ? { directAnswer: output.data.directAnswer, steps, helplines: localizedHelplines(language) }
+      : { directAnswer: output.data.directAnswer, steps };
+  } catch (err) {
+    console.error('[Guidance Error]', (err as Error).message);
+    return fallback();
   }
 }
 
+// ---------------------------------------------------------------------------
+// Conversation persistence (per session; content is already redacted)
+// ---------------------------------------------------------------------------
+
+function assistantText(body: Record<string, unknown>): string {
+  for (const key of ['directAnswer', 'draftMessage', 'message', 'summary']) {
+    const value = body[key];
+    if (typeof value === 'string' && value.trim()) return value;
+  }
+  return '';
+}
+
 /**
- * Generates an editable grievance draft strictly using user-supplied facts
+ * Stores the user turn and the assistant reply. Reuses `conversationId` only
+ * when it belongs to this session; otherwise starts a new conversation.
+ * Persistence failures never break the chat response.
  */
-async function generateGrievanceDraft(
-  message: string,
-  language: string,
-  extractedFacts?: { amount?: number; days?: number; platform?: string }
-) {
-  // The platform is kept only if the user actually wrote it; the classifier may guess one.
-  const facts = {
-    amount: extractedFacts?.amount,
-    days: extractedFacts?.days,
-    platform: extractedFacts?.platform && mentionedInMessage(message, extractedFacts.platform) ? extractedFacts.platform : undefined,
-  };
-  const systemInstruction = `
-You are a grievance message assistant for KaamPe.
-Task: Create a polite, firm dispute message for a worker.
-
-STRICT RULES:
-1. Use ONLY facts explicitly provided by user.
-2. NEVER invent dates, company names, employee IDs, incident details, threats, or fake legal sections.
-3. If an amount or days are provided, keep them exact.
-4. Output strict JSON:
-   {
-     "summary": "Short factual summary of the issue",
-     "draftMessage": "The polite and firm grievance message text ready to copy or edit",
-     "providedFacts": {
-       "amount": number or null,
-       "days": number or null,
-       "platform": string or null
-     }
-   }
-`;
-
+function persistTurn(
+  sessionId: string,
+  requestedConversationId: string | undefined,
+  userText: string,
+  body: Record<string, unknown>
+): string | undefined {
   try {
-    const ai = getGenAI();
-    const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: `User message: "${message}". Extracted: ${JSON.stringify(facts)}. Language: ${language}`,
-      config: {
-        systemInstruction,
-        thinkingConfig: { thinkingBudget: 1 }, // Medium thinking for grievance drafting
-        responseMimeType: 'application/json',
-      },
-    });
-
-    const parsed = parseModelJson(response.text);
-    const draftMessage = typeof parsed.draftMessage === 'string' ? parsed.draftMessage.trim() : '';
-    const modelPlatform = typeof parsed.providedFacts?.platform === 'string' ? parsed.providedFacts.platform : null;
-    const amount = facts.amount;
-    const days = facts.days;
-
-    // Reject drafts that drop the user's amount/days or name a platform the user never mentioned.
-    const keepsAmount = !amount || draftMessage.replace(/,/g, '').includes(String(amount));
-    const keepsDays = !days || draftMessage.includes(String(days));
-    const inventsPlatform = !!modelPlatform && !mentionedInMessage(message, modelPlatform);
-    if (!draftMessage || !keepsAmount || !keepsDays || inventsPlatform) {
-      return buildFactOnlyDraft(language, facts);
+    const now = Date.now();
+    let conversationId: string | undefined;
+    if (requestedConversationId) {
+      const owned = db
+        .prepare('SELECT id FROM conversations WHERE id = ? AND session_id = ?')
+        .get(requestedConversationId, sessionId) as { id: string } | undefined;
+      conversationId = owned?.id;
     }
 
-    return {
-      summary: typeof parsed.summary === 'string' && parsed.summary.trim() ? parsed.summary : buildFactOnlyDraft(language, facts).summary,
-      draftMessage,
-      facts,
-    };
+    db.exec('BEGIN');
+    try {
+      if (conversationId) {
+        db.prepare('UPDATE conversations SET updated_at = ? WHERE id = ? AND session_id = ?').run(now, conversationId, sessionId);
+      } else {
+        conversationId = 'conv_' + crypto.randomUUID();
+        db.prepare('INSERT INTO conversations (id, session_id, created_at, updated_at) VALUES (?, ?, ?, ?)').run(conversationId, sessionId, now, now);
+      }
+      const insert = db.prepare(
+        'INSERT INTO messages (id, conversation_id, session_id, role, content, structured_data, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      );
+      insert.run('msg_' + crypto.randomUUID(), conversationId, sessionId, 'user', userText, null, now);
+      insert.run('msg_' + crypto.randomUUID(), conversationId, sessionId, 'assistant', assistantText(body), JSON.stringify(body), now + 1);
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
+    return conversationId;
   } catch (err) {
-    console.error('[Grievance Draft Error]', (err as Error).message);
-    return buildFactOnlyDraft(language, facts);
+    console.error('[Conversation Persist Error]', (err as Error).message);
+    return undefined;
   }
-}
-
-function mentionedInMessage(message: string, value: string): boolean {
-  return message.toLowerCase().includes(value.trim().toLowerCase());
-}
-
-/**
- * Deterministic grievance draft built strictly from user-supplied facts.
- * Never names a platform, person, or employer.
- */
-function buildFactOnlyDraft(language: string, facts: { amount?: number; days?: number; platform?: string }) {
-  const { amount, days } = facts;
-  if (language === 'hi') {
-    const amountStr = amount ? `₹${amount}` : 'baaki';
-    const daysStr = days ? `${days} din` : 'kuch din';
-    return {
-      summary: `${amountStr} ki payment ${daysStr} se pending hai.`,
-      draftMessage: `Namaste Support Team, meri ${amountStr} ki payment ${daysStr} se pending hai aur abhi tak account mein credit nahi hui hai. Kripya iska status check karke payment release karein. Shukriya.`,
-      facts,
-    };
-  }
-  if (language === 'pa') {
-    const amountStr = amount ? `₹${amount}` : 'ਬਕਾਇਆ';
-    const daysStr = days ? `${days} ਦਿਨਾਂ` : 'ਕੁਝ ਦਿਨਾਂ';
-    return {
-      summary: `${amountStr} ਦੀ ਪੇਮੈਂਟ ${daysStr} ਤੋਂ ਪੈਂਡਿੰਗ ਹੈ।`,
-      draftMessage: `ਸਤਿ ਸ਼੍ਰੀ ਅਕਾਲ ਸਪੋਰਟ ਟੀਮ, ਮੇਰੀ ${amountStr} ਦੀ ਪੇਮੈਂਟ ${daysStr} ਤੋਂ ਪੈਂਡਿੰਗ ਹੈ ਅਤੇ ਖਾਤੇ ਵਿੱਚ ਨਹੀਂ ਆਈ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਇਸਨੂੰ ਜਲਦੀ ਰਿਲੀਜ਼ ਕੀਤਾ ਜਾਵੇ। ਧੰਨਵਾਦ।`,
-      facts,
-    };
-  }
-  const amountStr = amount ? `₹${amount}` : 'the pending amount';
-  const daysStr = days ? `${days} days` : 'several days';
-  return {
-    summary: `Payment of ${amountStr} pending for ${daysStr}.`,
-    draftMessage: `Dear Support Team, my payment of ${amountStr} has been pending for ${daysStr} and has not yet been credited to my account. Please verify and release the pending payment at the earliest. Thank you.`,
-    facts,
-  };
 }
 
 export default router;

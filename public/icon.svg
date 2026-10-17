@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="KaamPe">
+  <rect width="512" height="512" rx="112" fill="#F2A900"/>
+  <rect x="56" y="56" width="400" height="400" rx="88" fill="#17214D"/>
+  <path d="M176 140v232M176 262l104-122M200 236l92 136" fill="none" stroke="#ffffff" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="352" cy="360" r="26" fill="#ffffff"/>
+</svg>

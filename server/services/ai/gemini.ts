@@ -10,6 +10,8 @@ import {
   MoneyEntryRecord,
 } from '../money/calculator.js';
 import { db } from '../../db/index.js';
+import { buildIntentPrompt, wrapUserInput } from './prompts.js';
+import { generateWithRetry, getModelName, thinkingConfigFor, TIMEOUTS } from './client.js';
 
 let genAIClient: GoogleGenAI | null = null;
 
@@ -59,16 +61,30 @@ export const IntentSchema = z.object({
 
 export type ExtractedIntent = z.infer<typeof IntentSchema>;
 
-// Pre-approved official source domains for rights & welfare schemes
+/**
+ * Pre-approved official source domains for rights & welfare schemes. A URL is
+ * trusted when its hostname equals an entry or is a subdomain of it (dot
+ * boundary). `gov.in` and `nic.in` are kept as suffixes on purpose: in India
+ * these zones are restricted to government bodies (registered via NIC), so
+ * every *.gov.in / *.nic.in host is genuinely official. The remaining entries
+ * are official scheme portals hosted outside those zones.
+ */
 export const TRUSTED_OFFICIAL_DOMAINS = [
+  'gov.in',
+  'nic.in',
   'eshram.gov.in',
   'labour.gov.in',
-  'gov.in',
   'india.gov.in',
   'myscheme.gov.in',
+  'jansuraksha.gov.in',
+  'pmjay.gov.in',
+  'pmsvanidhi.mohua.gov.in',
   'bocw.punjab.gov.in',
   'pblabour.gov.in',
   'punjab.gov.in',
+  'maandhan.in', // PM-SYM portal (Ministry of Labour & Employment)
+  'pfrda.org.in', // Pension regulator (Atal Pension Yojana)
+  'npscra.nsdl.co.in', // APY / NPS central record-keeping agency
 ];
 
 /**
@@ -85,15 +101,19 @@ export function parseModelJson(text: string | undefined): any {
  * Checks if a URL belongs to a trusted government domain
  */
 export function isTrustedGovernmentDomain(url: string): boolean {
+  if (typeof url !== 'string' || url.length > 2048) return false;
+  let parsed: URL;
   try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname.toLowerCase();
-    return TRUSTED_OFFICIAL_DOMAINS.some(
-      (domain) => hostname === domain || hostname.endsWith('.' + domain)
-    );
+    parsed = new URL(url.trim());
   } catch {
     return false;
   }
+  // https only; no credentials (blocks "https://eshram.gov.in@evil.com"); default port only.
+  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.port) return false;
+  // WHATWG URL already lower-cases and punycodes the host; drop a trailing root dot.
+  const hostname = parsed.hostname.replace(/\.$/, '');
+  if (!hostname || hostname.startsWith('[')) return false;
+  return TRUSTED_OFFICIAL_DOMAINS.some((domain) => hostname === domain || hostname.endsWith('.' + domain));
 }
 
 /**
@@ -103,25 +123,15 @@ export async function extractIntent(
   userMessage: string,
   userLanguage: string = 'hi'
 ): Promise<ExtractedIntent> {
-  const systemInstruction = `
-You are an intent extraction engine for KaamPe, an assistant for informal workers in India.
-Identify user intent accurately:
-- 'record_money': user wants to record income, expense, or both. Extract amounts as positive numbers. If source is specified (e.g. Swiggy, Zomato, Uber, cash), extract it.
-- 'ask_money': user is inquiring about their earnings/balance/remaining money (e.g. "Kitna bacha?", "Aaj kitna kamaya?", "Mera balance kya hai?").
-- 'rights': questions regarding legal rights, minimum wages, overtime.
-- 'scheme': inquiries about government welfare schemes (e.g., e-Shram, BOCW, PM-SYM).
-- 'safety': workplace safety questions, extreme heat, protective gear.
-- 'grievance': issues regarding unpaid wages, delayed payment.
-- 'general': general greetings or advice.
-Respond strictly in JSON matching the schema.
-`;
+  const systemInstruction = buildIntentPrompt();
 
   try {
     const ai = getGenAI();
-    const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-    const response = await ai.models.generateContent({
+    const modelName = getModelName();
+    // Classification must be fast: short timeout, no retry, regex fallback on any failure.
+    const response = await generateWithRetry(ai, {
       model: modelName,
-      contents: userMessage,
+      contents: wrapUserInput(userMessage),
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
@@ -161,12 +171,10 @@ Respond strictly in JSON matching the schema.
           },
           required: ['intent'],
         },
-        // Low thinking for intent classification
-        thinkingConfig: {
-          thinkingBudget: 0,
-        },
+        // Minimal thinking for intent classification
+        thinkingConfig: thinkingConfigFor(modelName, 'minimal'),
       },
-    });
+    }, { timeoutMs: TIMEOUTS.classify, retries: 0 });
 
     const text = response.text || '{}';
     const json = JSON.parse(text);
@@ -240,8 +248,8 @@ export function fallbackIntentExtraction(text: string): ExtractedIntent {
     return { intent: 'scheme' };
   }
 
-  // Safety
-  if (/(?:safety|helmet|garmi|dhoop|rain|accident|precautions|night delivery)/i.test(lower)) {
+  // Safety (heat, accidents, harassment, fraud / OTP scams, emergencies)
+  if (/(?:safety|helmet|garmi|dhoop|rain|accident|precautions|night delivery|\botp\b|fraud|scam|dhokha|thagi|harass|emergency|ambulance|police|chot|injur|ਗਰਮੀ|ਹਾਦਸਾ|ਧੋਖਾ|गर्मी|हादसा|धोखा)/i.test(lower)) {
     return { intent: 'safety' };
   }
 
@@ -275,7 +283,7 @@ export function prepareMoneyConfirmation(earning?: { amount: number; source?: st
     expense: expenseRupees > 0 ? {
       amountRupees: expenseRupees,
       amountPaise: expensePaise,
-      category: expense?.category || 'Fuel',
+      category: expense?.category || 'Other',
     } : null,
     netRupees,
     netPaise,

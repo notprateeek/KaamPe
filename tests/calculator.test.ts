@@ -6,6 +6,13 @@ import {
   calculateDailySummary,
   calculateWeeklySummary,
   formatRupees,
+  getTodayDateString,
+  addDaysToDateString,
+  isRealCalendarDate,
+  validateEntryDate,
+  parseRupeeAmount,
+  MoneyValidationError,
+  MAX_ENTRY_PAISE,
   MoneyEntryRecord,
 } from '../server/services/money/calculator';
 
@@ -133,5 +140,86 @@ describe('Financial Math & Paise Precision', () => {
     expect(formatRupees(12500)).toBe('₹12,500');
     expect(formatRupees(650)).toBe('₹650');
     expect(formatRupees(0.5)).toBe('₹0.50');
+  });
+});
+
+describe('Strict user amount parsing (parseRupeeAmount)', () => {
+  it('accepts positive amounts with up to 2 decimals and returns integer paise', () => {
+    expect(parseRupeeAmount(850)).toBe(85000);
+    expect(parseRupeeAmount('1,200.75')).toBe(120075);
+    expect(parseRupeeAmount('₹ 650')).toBe(65000);
+    expect(parseRupeeAmount(0.29)).toBe(29);
+    expect(parseRupeeAmount('10.50')).toBe(1050);
+    expect(parseRupeeAmount(1_000_000)).toBe(MAX_ENTRY_PAISE);
+  });
+
+  it.each([
+    ['1e400', 'invalid'],
+    [Infinity, 'invalid'],
+    [NaN, 'invalid'],
+    ['0x10', 'invalid'],
+    ['', 'invalid'],
+    [null, 'invalid'],
+    [-5, 'not_positive'],
+    ['-5', 'not_positive'],
+    [0, 'not_positive'],
+    [0.001, 'too_many_decimals'],
+    ['1.234', 'too_many_decimals'],
+    [1_000_000.01, 'too_large'],
+  ])('rejects %s (%s)', (input, code) => {
+    try {
+      parseRupeeAmount(input);
+      expect.fail('should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(MoneyValidationError);
+      expect((err as MoneyValidationError).code).toBe(code);
+    }
+  });
+
+  it('rupeesToPaise rejects exponent and empty strings instead of silently coercing', () => {
+    expect(() => rupeesToPaise('1e400')).toThrow();
+    expect(() => rupeesToPaise('')).toThrow();
+    expect(() => rupeesToPaise(Infinity)).toThrow();
+    expect(() => rupeesToPaise(1e300)).toThrow();
+  });
+});
+
+describe('India timezone (Asia/Kolkata) date logic', () => {
+  it('rolls over to the next day at 00:00 IST (18:30 UTC), regardless of server timezone', () => {
+    expect(getTodayDateString(new Date('2026-10-16T18:29:59Z'))).toBe('2026-10-16');
+    expect(getTodayDateString(new Date('2026-10-16T18:30:00Z'))).toBe('2026-10-17');
+    // 01:00 UTC on the 17th is 06:30 IST on the 17th
+    expect(getTodayDateString(new Date('2026-10-17T01:00:00Z'))).toBe('2026-10-17');
+    // Year boundary
+    expect(getTodayDateString(new Date('2026-12-31T19:00:00Z'))).toBe('2027-01-01');
+  });
+
+  it('weekly summary window is the 7 India-calendar days ending today', () => {
+    const late = new Date('2026-10-16T20:00:00Z'); // 01:30 IST on 17 Oct
+    const today = getTodayDateString(late);
+    const entry = (date: string, amountPaise: number): MoneyEntryRecord => ({
+      id: date, sessionId: 's', type: 'earning', amountPaise, categoryOrSource: null, note: null, date, createdAt: 0, updatedAt: 0,
+    });
+    const weekly = calculateWeeklySummary([entry('2026-10-17', 100), entry('2026-10-11', 10), entry('2026-10-10', 1)], today);
+    expect(weekly.days.map((d) => d.date)).toEqual([
+      '2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17',
+    ]);
+    expect(weekly.totalEarningsPaise).toBe(110);
+  });
+
+  it('adds days across month and leap-year boundaries', () => {
+    expect(addDaysToDateString('2028-02-28', 1)).toBe('2028-02-29');
+    expect(addDaysToDateString('2026-03-01', -1)).toBe('2026-02-28');
+    expect(addDaysToDateString('2026-01-03', -6)).toBe('2025-12-28');
+  });
+
+  it('validates real calendar dates and rejects far-future entries', () => {
+    expect(isRealCalendarDate('2026-02-30')).toBe(false);
+    expect(isRealCalendarDate('2028-02-29')).toBe(true);
+    expect(isRealCalendarDate('2026-1-01')).toBe(false);
+    expect(validateEntryDate('2026-10-17', '2026-10-17')).toBeNull();
+    expect(validateEntryDate('2026-10-18', '2026-10-17')).toBeNull(); // 1 day clock-skew tolerance
+    expect(validateEntryDate('2026-10-19', '2026-10-17')).not.toBeNull();
+    expect(validateEntryDate('1999-12-31', '2026-10-17')).not.toBeNull();
   });
 });

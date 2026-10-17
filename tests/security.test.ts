@@ -18,6 +18,37 @@ describe('Security & Validation Checks', () => {
     expect(isTrustedGovernmentDomain('invalid-url')).toBe(false);
   });
 
+  it('allowlist matches by hostname with a dot boundary and rejects bypass tricks', () => {
+    // Genuine government subdomains and official scheme portals
+    expect(isTrustedGovernmentDomain('https://pmjay.gov.in')).toBe(true);
+    expect(isTrustedGovernmentDomain('https://labour.punjab.gov.in/x')).toBe(true);
+    expect(isTrustedGovernmentDomain('https://www.jansuraksha.gov.in')).toBe(true);
+    expect(isTrustedGovernmentDomain('https://maandhan.in')).toBe(true);
+    expect(isTrustedGovernmentDomain('https://ESHRAM.GOV.IN/')).toBe(true);
+    expect(isTrustedGovernmentDomain('https://eshram.gov.in./')).toBe(true);
+
+    // No dot boundary
+    expect(isTrustedGovernmentDomain('https://evilgov.in')).toBe(false);
+    expect(isTrustedGovernmentDomain('https://fakemaandhan.in')).toBe(false);
+    expect(isTrustedGovernmentDomain('https://notnic.in')).toBe(false);
+    // Allowlisted name used as a prefix of an attacker domain
+    expect(isTrustedGovernmentDomain('https://gov.in.evil.com')).toBe(false);
+    expect(isTrustedGovernmentDomain('https://eshram.gov.in.attacker.example/login')).toBe(false);
+    // Userinfo tricks
+    expect(isTrustedGovernmentDomain('https://eshram.gov.in@evil.com')).toBe(false);
+    expect(isTrustedGovernmentDomain('https://user:pass@eshram.gov.in')).toBe(false);
+    // Scheme / port / path tricks
+    expect(isTrustedGovernmentDomain('http://eshram.gov.in')).toBe(false);
+    expect(isTrustedGovernmentDomain('javascript://eshram.gov.in/%0aalert(1)')).toBe(false);
+    expect(isTrustedGovernmentDomain('https://eshram.gov.in:8443/')).toBe(false);
+    expect(isTrustedGovernmentDomain('https://evil.com/eshram.gov.in')).toBe(false);
+    expect(isTrustedGovernmentDomain('https://evil.com?u=https://eshram.gov.in')).toBe(false);
+    expect(isTrustedGovernmentDomain('https://evil.com#eshram.gov.in')).toBe(false);
+    expect(isTrustedGovernmentDomain('//eshram.gov.in')).toBe(false);
+    expect(isTrustedGovernmentDomain('https://127.0.0.1')).toBe(false);
+    expect(isTrustedGovernmentDomain('')).toBe(false);
+  });
+
   it('validates structured AI intent schemas using Zod', () => {
     const validMoney = {
       intent: 'record_money',

@@ -18,12 +18,18 @@ export interface Translations {
     step2Title: string;
     step3Title: string;
     continue: string;
+    back: string;
+    step2Subtitle: string;
+    step3Subtitle: string;
+    stateLabel: string;
+    stepProgress: string;
     workerTypes: {
       delivery: string;
       driver: string;
       construction: string;
       domestic: string;
       daily_wage: string;
+      street_vendor: string;
       other: string;
     };
   };
@@ -78,6 +84,35 @@ export interface Translations {
     weekNet: string;
     dailyBreakdown: string;
     noEntriesDay: string;
+    amountPlaceholder: string;
+    sourcePlaceholder: string;
+    notePlaceholder: string;
+    loading: string;
+    errorLoad: string;
+    errorAmountInvalid: string;
+    errorSaveFailed: string;
+    errorDelete: string;
+    deleteEntryLabel: string;
+    deleteConfirmBtn: string;
+    typeEarning: string;
+    typeExpense: string;
+    today: string;
+    chartTitle: string;
+    chartCaption: string;
+    chartEmpty: string;
+    colDay: string;
+    colEarned: string;
+    colSpent: string;
+    colNet: string;
+    platformTitle: string;
+    platformUnspecified: string;
+    platformDays: string;
+    platformEarnPerDay: string;
+    platformNetPerDay: string;
+    platformShare: string;
+    platformBest: string;
+    platformNote: string;
+    platformEmpty: string;
     categories: {
       Fuel: string;
       Food: string;
@@ -116,6 +151,71 @@ export interface Translations {
     docAskPrompt: string;
     resultPlaceholderDoc: string;
     resultPlaceholderDispute: string;
+    tabSchemes: string;
+    tabListLabel: string;
+    docFileHint: string;
+    docTakePhoto: string;
+    docSelected: string;
+    docTooLarge: string;
+    docTypeError: string;
+    docUploadFailed: string;
+    docComplaintTitle: string;
+    docComplaintHint: string;
+    docComplaintBtn: string;
+    docComplaintPrefill: string;
+    docComplaintMoney: string;
+    evidenceLabel: string;
+    evidenceHint: string;
+    evidencePreviewTitle: string;
+    evidenceTemplate: string;
+    evidencePlatforms: string;
+    evidenceEmpty: string;
+    evidenceLoading: string;
+    evidenceError: string;
+    disputeNotGrievance: string;
+    disputeInvalid: string;
+    disputeDefaultSummary: string;
+    rateLimited: string;
+    docQuestionLabel: string;
+    docQuestionPlaceholder: string;
+    downloadTxt: string;
+  };
+  schemes: {
+    title: string;
+    intro: string;
+    aboutYouLegend: string;
+    ageLabel: string;
+    incomeLabel: string;
+    optionalHint: string;
+    workerTypeLabel: string;
+    stateLabel: string;
+    epfoLegend: string;
+    epfoHint: string;
+    esicLegend: string;
+    esicHint: string;
+    taxLegend: string;
+    yes: string;
+    no: string;
+    unknown: string;
+    submit: string;
+    checking: string;
+    resultsTitle: string;
+    resultsRegionLabel: string;
+    noMatches: string;
+    benefitLabel: string;
+    whyQualify: string;
+    pleaseCheck: string;
+    officialLink: string;
+    opensNewTab: string;
+    askAbout: string;
+    askPrompt: string;
+    disclaimerTitle: string;
+    errorAge: string;
+    errorIncome: string;
+    errorInvalid: string;
+    errorRateLimit: string;
+    errorNetwork: string;
+    placeholder: string;
   };
   ai: {
     thinking: string;
@@ -132,6 +232,24 @@ export interface Translations {
     spent: string;
     left: string;
     cancelled: string;
+    notSavedYet: string;
+  };
+  profileEditor: {
+    edit: string;
+    work: string;
+    state: string;
+    save: string;
+    cancel: string;
+    saved: string;
+    workerShort: {
+      delivery: string;
+      driver: string;
+      construction: string;
+      domestic: string;
+      daily_wage: string;
+      street_vendor: string;
+      other: string;
+    };
   };
   common: {
     error: string;
@@ -139,6 +257,60 @@ export interface Translations {
     close: string;
     language: string;
     profile: string;
+  };
+  /** Voice (speech-to-text) input — VoiceInputButton */
+  voice: {
+    start: string;
+    stop: string;
+    listening: string;
+    stopped: string;
+    errorPermission: string;
+    errorNoSpeech: string;
+    errorNoMic: string;
+    errorNetwork: string;
+    errorGeneric: string;
+  };
+  /** Read-aloud + copy actions on answers */
+  speech: {
+    listen: string;
+    stop: string;
+    copy: string;
+    copied: string;
+    copyFailed: string;
+    speakError: string;
+  };
+  /** Floating SOS button + dialog */
+  sos: {
+    buttonLabel: string;
+    title: string;
+    intro: string;
+    callLabel: string;
+    shareLocation: string;
+    locating: string;
+    locationReady: string;
+    openMap: string;
+    sendSms: string;
+    shareMessage: string;
+    locationDenied: string;
+    locationUnavailable: string;
+    locationUnsupported: string;
+  };
+  a11y: {
+    skipToContent: string;
+    mainNav: string;
+    loading: string;
+    largeText: string;
+  };
+  chat: {
+    rateLimited: string;
+    newReply: string;
+    saveFailed: string;
+  };
+  forms: {
+    invalidAmount: string;
+    saveFailed: string;
+    amountPlaceholder: string;
+    sourcePlaceholder: string;
   };
 }
 
@@ -161,12 +333,18 @@ export const translations: Record<Language, Translations> = {
       step2Title: 'Aap kis tarah ka kaam karte hain?',
       step3Title: 'Apna rajya (State) chunein',
       continue: 'Aage badhein',
+      back: 'Peeche',
+      step2Subtitle: 'Sahi jaankari ke liye apna kaam chunein',
+      step3Subtitle: 'Sarkari schemes aapke state ke hisaab se dikhengi',
+      stateLabel: 'Rajya (State)',
+      stepProgress: 'Kadam {n} / 3',
       workerTypes: {
         delivery: 'Delivery (Swiggy, Zomato, etc.)',
         driver: 'Driver (Cab / Auto)',
         construction: 'Construction (Nirmaan karya)',
         domestic: 'Gharelu kaam (Domestic work)',
         daily_wage: 'Dihadi mazdoor (Daily wage)',
+        street_vendor: 'Rehri-patri (Street vendor)',
         other: 'Anye (Other)',
       },
     },
@@ -221,6 +399,35 @@ export const translations: Record<Language, Translations> = {
       weekNet: 'Hafte ka bacha',
       dailyBreakdown: 'Din-wise hisaab',
       noEntriesDay: 'Koi entry nahi',
+      amountPlaceholder: 'Jaise: 850',
+      sourcePlaceholder: 'Jaise: Swiggy, Zomato, Cash',
+      notePlaceholder: 'Koi aur jaankari (zaroori nahi)',
+      loading: 'Hisaab load ho raha hai…',
+      errorLoad: 'Hisaab load nahi ho paya. Internet check karke dobara try karein.',
+      errorAmountInvalid: '₹0 se zyada sahi rakam likhein (zyada se zyada 2 decimal).',
+      errorSaveFailed: 'Entry save nahi ho payi. Kripya dobara try karein.',
+      errorDelete: 'Entry hata nahi paye. Kripya dobara try karein.',
+      deleteEntryLabel: '{type} {amount} ({date}) hatayein',
+      deleteConfirmBtn: 'Haan, hatayein',
+      typeEarning: 'Kamai',
+      typeExpense: 'Kharcha',
+      today: 'Aaj',
+      chartTitle: '7 din ka bacha',
+      chartCaption: 'Pichhle 7 din ki kamai, kharcha aur bacha',
+      chartEmpty: 'Is hafte abhi koi entry nahi hai.',
+      colDay: 'Din',
+      colEarned: 'Kamai',
+      colSpent: 'Kharcha',
+      colNet: 'Bacha',
+      platformTitle: 'Platform-wise kamai (7 din)',
+      platformUnspecified: 'Bina naam ka source',
+      platformDays: '{n} din kaam',
+      platformEarnPerDay: '{amount}/din kamai',
+      platformNetPerDay: 'lagbhag {amount}/din bacha',
+      platformShare: 'Hafte ki kamai ka {pct}%',
+      platformBest: 'Sabse zyada bacha',
+      platformNote: 'Bacha/din ek anumaan hai: har din ka kharcha us din ki kamai ke hisaab se platforms mein baanta gaya hai.',
+      platformEmpty: 'Kamai add karte waqt platform ka naam likhein (jaise Swiggy), yahan tulna dikhegi.',
       categories: {
         Fuel: 'Petrol / Fuel',
         Food: 'Khana / Chai',
@@ -259,6 +466,71 @@ export const translations: Record<Language, Translations> = {
       docAskPrompt: 'Maine ek document upload kiya hai: "{doc}". Iske baare mein aur batayein.',
       resultPlaceholderDoc: 'Document upload karne ke baad aasaan bhasha mein samjhaya gaya jawab yahan dikhega.',
       resultPlaceholderDispute: 'Aapka draft message yahan dikhega. Aap use edit karke copy kar sakte hain.',
+      tabSchemes: 'Sarkari schemes',
+      tabListLabel: 'Help ke vikalp',
+      docFileHint: 'PDF, JPG, PNG (max 10MB)',
+      docTakePhoto: 'Camera se photo lein',
+      docSelected: 'Chuni gayi file: {name}',
+      docTooLarge: 'File 10MB se badi hai. Chhoti file chunein.',
+      docTypeError: 'Sirf PDF, JPG ya PNG file chunein.',
+      docUploadFailed: 'Document padh nahi paye. Kripya dobara try karein.',
+      docComplaintTitle: 'Is document se koi shikayat hai?',
+      docComplaintHint: 'Is document ki jaankari ke saath shikayat ka draft shuru karein',
+      docComplaintBtn: 'Shikayat likhein',
+      docComplaintPrefill: 'Mujhe is document ke baare mein shikayat karni hai: {doc}{money}\nMeri samasya: ',
+      docComplaintMoney: '\nPaise ki baatein: {items}',
+      evidenceLabel: 'Pichhle 7 din ki kamai saboot ke roop mein jodein',
+      evidenceHint: 'KaamPe mein darj aapka hisaab aapki baat ke saath bheja jayega.',
+      evidencePreviewTitle: 'Yeh joda jayega:',
+      evidenceTemplate: 'Mere KaamPe record ke hisaab se pichhle 7 din ({from} se {to}): kul kamai {earned}, kharcha {spent}, bacha {net}; {days} din kaam darj hai.',
+      evidencePlatforms: ' Platform-wise kamai: {list}.',
+      evidenceEmpty: 'Pichhle 7 din mein koi kamai darj nahi hai, isliye kuch nahi joda jayega.',
+      evidenceLoading: 'Hisaab nikal rahe hain…',
+      evidenceError: 'Kamai ka hisaab load nahi ho paya. Bina saboot ke draft banega.',
+      disputeNotGrievance: 'Yeh payment ya kaam ki shikayat jaisa nahi laga. Kripya likhein: kis kaam ka, kitna paisa, aur kitne din se pending hai.',
+      disputeInvalid: 'Kripya apni samasya chhote mein likhein (1500 akshar tak).',
+      disputeDefaultSummary: 'Payment ki samasya',
+      rateLimited: 'Bahut jaldi request ho gayi. Kuch second ruk kar dobara try karein.',
+      docQuestionLabel: 'Is document ke baare mein aapka sawaal',
+      docQuestionPlaceholder: 'Jaise: Kya yeh penalty sahi hai?',
+      downloadTxt: 'Download (.txt)',
+    },
+    schemes: {
+      title: 'Kaun si sarkari scheme mil sakti hai?',
+      intro: 'Kuch sawaalon ke jawab dein. Scheme sirf aapke jawab ke hisaab se dikhengi; aakhri faisla sarkari office ya portal karega.',
+      aboutYouLegend: 'Aapke baare mein',
+      ageLabel: 'Umar (saal)',
+      incomeLabel: 'Mahine ki kamai (₹)',
+      optionalHint: 'Zaroori nahi, par isse sahi scheme milti hai',
+      workerTypeLabel: 'Kaam',
+      stateLabel: 'Rajya (State)',
+      epfoLegend: 'Kya aapka PF (EPFO) katta hai?',
+      epfoHint: 'Salary slip par "PF" ya "EPF" likha hota hai',
+      esicLegend: 'Kya aapke paas ESIC (ESI card) hai?',
+      esicHint: 'Company ke through ESI hospital wala card',
+      taxLegend: 'Kya aap income tax bharte hain?',
+      yes: 'Haan',
+      no: 'Nahi',
+      unknown: 'Pata nahi',
+      submit: 'Meri schemes dekhein',
+      checking: 'Check kar rahe hain…',
+      resultsTitle: '{n} scheme aapke liye kaam ki ho sakti hain',
+      resultsRegionLabel: 'Scheme ke nateeje',
+      noMatches: 'Aapke jawab ke hisaab se abhi koi scheme match nahi hui. Nazdeeki CSC ya labour office se bhi poochh sakte hain.',
+      benefitLabel: 'Fayda',
+      whyQualify: 'Aap kyun yogya ho sakte hain',
+      pleaseCheck: 'Yeh zaroor check karein',
+      officialLink: 'Official website',
+      opensNewTab: '(naye tab mein khulega)',
+      askAbout: 'KaamPe se poochhein',
+      askPrompt: '"{scheme}" scheme ke liye apply kaise karein aur kaun se documents chahiye?',
+      disclaimerTitle: 'Dhyan dein',
+      errorAge: 'Umar 14 se 100 saal ke beech likhein.',
+      errorIncome: 'Kamai 0 ya usse zyada likhein.',
+      errorInvalid: 'Kuch jawab sahi nahi lage. Check karke dobara bhejein.',
+      errorRateLimit: 'Bahut jaldi dobara poocha. {seconds} second baad try karein.',
+      errorNetwork: 'Internet connection check karein aur dobara try karein.',
+      placeholder: 'Form bharne ke baad aapke liye schemes yahan dikhengi.',
     },
     ai: {
       thinking: 'KaamPe soch raha hai...',
@@ -275,6 +547,24 @@ export const translations: Record<Language, Translations> = {
       spent: 'Kharcha',
       left: 'Bacha',
       cancelled: 'Cancel kar diya gaya.',
+      notSavedYet: 'ABHI SAVE NAHI',
+    },
+    profileEditor: {
+      edit: 'Badlein',
+      work: 'Aapka kaam',
+      state: 'Rajya',
+      save: 'Profile save karein',
+      cancel: 'Cancel',
+      saved: 'Profile update ho gayi',
+      workerShort: {
+        delivery: 'Delivery',
+        driver: 'Driver',
+        construction: 'Nirmaan',
+        domestic: 'Gharelu kaam',
+        daily_wage: 'Dihadi',
+        street_vendor: 'Rehri-patri',
+        other: 'Anye',
+      },
     },
     common: {
       error: 'Kuch gadbad hui. Kripya dobara try karein.',
@@ -282,6 +572,57 @@ export const translations: Record<Language, Translations> = {
       close: 'Band karein',
       language: 'Bhasha',
       profile: 'Aapki profile',
+    },
+    voice: {
+      start: 'Bolkar likhein (mic)',
+      stop: 'Mic band karein',
+      listening: 'Sun rahe hain… boliye',
+      stopped: 'Mic band ho gaya',
+      errorPermission: 'Mic ki permission nahi mili. Browser settings mein mic allow karein.',
+      errorNoSpeech: 'Kuch sunai nahi diya. Dobara boliye.',
+      errorNoMic: 'Mic nahi mila. Mic check karein.',
+      errorNetwork: 'Internet nahi hai, isliye bolkar likhna abhi nahi chalega.',
+      errorGeneric: 'Bolkar likhna abhi nahi chala. Type karke likhein.',
+    },
+    speech: {
+      listen: 'Sunein',
+      stop: 'Rokein',
+      copy: 'Copy',
+      copied: 'Jawab copy hua',
+      copyFailed: 'Copy nahi hua. Text ko daba kar copy karein.',
+      speakError: 'Awaaz mein sunana abhi nahi chala.',
+    },
+    sos: {
+      buttonLabel: 'SOS: emergency number aur location bhejein',
+      title: 'Emergency (SOS)',
+      intro: 'Turant call karne ke liye number dabayein. Yeh number free hain.',
+      callLabel: 'Call karein',
+      shareLocation: 'Apni location bhejein',
+      locating: 'Location dhoondh rahe hain…',
+      locationReady: 'Location mil gayi. Kisi apne ko bhejein:',
+      openMap: 'Map par dekhein',
+      sendSms: 'SMS se bhejein',
+      shareMessage: 'Mujhe madad chahiye. Meri location:',
+      locationDenied: 'Location ki permission nahi mili. Browser settings mein location allow karein.',
+      locationUnavailable: 'Location nahi mil payi. Thodi der baad dobara try karein.',
+      locationUnsupported: 'Is phone/browser mein location nahi chalti.',
+    },
+    a11y: {
+      skipToContent: 'Seedhe content par jaayein',
+      mainNav: 'Mukhya navigation',
+      loading: 'Load ho raha hai…',
+      largeText: 'Bade akshar',
+    },
+    chat: {
+      rateLimited: 'Thoda ruk kar dobara bhejein.',
+      newReply: 'KaamPe ka jawab aa gaya',
+      saveFailed: 'Paisa save nahi ho paya. Dobara try karein.',
+    },
+    forms: {
+      invalidAmount: 'Sahi rakam likhein (0 se zyada).',
+      saveFailed: 'Save nahi ho paya. Dobara try karein.',
+      amountPlaceholder: 'Jaise 850',
+      sourcePlaceholder: 'Jaise Swiggy, Zomato, Cash',
     },
   },
   en: {
@@ -302,12 +643,18 @@ export const translations: Record<Language, Translations> = {
       step2Title: 'What kind of work do you do?',
       step3Title: 'Choose your State',
       continue: 'Continue',
+      back: 'Back',
+      step2Subtitle: 'Select your primary work',
+      step3Subtitle: 'Schemes and rights tailored to your state',
+      stateLabel: 'State',
+      stepProgress: 'Step {n} of 3',
       workerTypes: {
         delivery: 'Delivery Partner',
         driver: 'Driver (Cab / Auto)',
         construction: 'Construction Worker',
         domestic: 'Domestic Worker',
         daily_wage: 'Daily Wage Worker',
+        street_vendor: 'Street Vendor',
         other: 'Other Informal Work',
       },
     },
@@ -362,6 +709,35 @@ export const translations: Record<Language, Translations> = {
       weekNet: 'Net this week',
       dailyBreakdown: 'Day by day',
       noEntriesDay: 'No entries',
+      amountPlaceholder: 'e.g. 850',
+      sourcePlaceholder: 'e.g. Swiggy, Zomato, Cash',
+      notePlaceholder: 'Optional details',
+      loading: 'Loading your money summary…',
+      errorLoad: 'Could not load your money summary. Check your internet and try again.',
+      errorAmountInvalid: 'Enter a valid amount greater than ₹0 (up to 2 decimals).',
+      errorSaveFailed: 'Could not save the entry. Please try again.',
+      errorDelete: 'Could not delete the entry. Please try again.',
+      deleteEntryLabel: 'Delete {type} of {amount} on {date}',
+      deleteConfirmBtn: 'Yes, delete',
+      typeEarning: 'Earning',
+      typeExpense: 'Expense',
+      today: 'Today',
+      chartTitle: 'Net, last 7 days',
+      chartCaption: 'Earnings, expenses and net for the last 7 days',
+      chartEmpty: 'No entries this week yet.',
+      colDay: 'Day',
+      colEarned: 'Earned',
+      colSpent: 'Spent',
+      colNet: 'Net',
+      platformTitle: 'Earnings by platform (7 days)',
+      platformUnspecified: 'Unnamed source',
+      platformDays: '{n} days worked',
+      platformEarnPerDay: '{amount}/day earned',
+      platformNetPerDay: 'about {amount}/day net',
+      platformShare: '{pct}% of week\'s earnings',
+      platformBest: 'Best net per day',
+      platformNote: 'Net/day is an estimate: each day\'s expenses are split across platforms in proportion to that day\'s earnings.',
+      platformEmpty: 'Add the platform name (e.g. Swiggy) when you log earnings to compare platforms here.',
       categories: {
         Fuel: 'Fuel / Petrol',
         Food: 'Food / Meals',
@@ -400,6 +776,71 @@ export const translations: Record<Language, Translations> = {
       docAskPrompt: 'I uploaded a document: "{doc}". Tell me more about it.',
       resultPlaceholderDoc: 'After you upload a document, a simple explanation will appear here.',
       resultPlaceholderDispute: 'Your draft message will appear here. You can edit and copy it.',
+      tabSchemes: 'Government schemes',
+      tabListLabel: 'Help options',
+      docFileHint: 'PDF, JPG, PNG (max 10MB)',
+      docTakePhoto: 'Take a photo',
+      docSelected: 'Selected file: {name}',
+      docTooLarge: 'File is larger than 10MB. Please choose a smaller file.',
+      docTypeError: 'Please choose a PDF, JPG or PNG file.',
+      docUploadFailed: 'Could not read the document. Please try again.',
+      docComplaintTitle: 'Have a complaint about this document?',
+      docComplaintHint: 'Start a complaint draft with this document\'s details',
+      docComplaintBtn: 'Draft a complaint',
+      docComplaintPrefill: 'I want to complain about this document: {doc}{money}\nMy problem: ',
+      docComplaintMoney: '\nMoney details: {items}',
+      evidenceLabel: 'Attach my last 7 days earnings as evidence',
+      evidenceHint: 'Your KaamPe records will be sent along with your description.',
+      evidencePreviewTitle: 'This will be added:',
+      evidenceTemplate: 'As per my KaamPe records for the last 7 days ({from} to {to}): total earnings {earned}, expenses {spent}, net {net}; work recorded on {days} days.',
+      evidencePlatforms: ' Earnings by platform: {list}.',
+      evidenceEmpty: 'No earnings recorded in the last 7 days, so nothing will be added.',
+      evidenceLoading: 'Calculating your earnings…',
+      evidenceError: 'Could not load your earnings. The draft will be made without evidence.',
+      disputeNotGrievance: 'This does not look like a payment or work complaint. Please mention which work, how much money, and for how many days it has been pending.',
+      disputeInvalid: 'Please describe your issue more briefly (up to 1500 characters).',
+      disputeDefaultSummary: 'Payment issue reported',
+      rateLimited: 'Too many requests. Please wait a few seconds and try again.',
+      docQuestionLabel: 'Your question about this document',
+      docQuestionPlaceholder: 'e.g. Is this penalty correct?',
+      downloadTxt: 'Download (.txt)',
+    },
+    schemes: {
+      title: 'Which government schemes could help you?',
+      intro: 'Answer a few questions. Schemes are matched only on your answers; the final decision is made by the government office or portal.',
+      aboutYouLegend: 'About you',
+      ageLabel: 'Age (years)',
+      incomeLabel: 'Monthly income (₹)',
+      optionalHint: 'Optional, but helps find the right schemes',
+      workerTypeLabel: 'Work',
+      stateLabel: 'State',
+      epfoLegend: 'Is PF (EPFO) deducted from your pay?',
+      epfoHint: 'Your salary slip shows "PF" or "EPF"',
+      esicLegend: 'Do you have ESIC (ESI card)?',
+      esicHint: 'ESI hospital card provided through an employer',
+      taxLegend: 'Do you pay income tax?',
+      yes: 'Yes',
+      no: 'No',
+      unknown: 'Don\'t know',
+      submit: 'Show my schemes',
+      checking: 'Checking…',
+      resultsTitle: '{n} schemes may be relevant for you',
+      resultsRegionLabel: 'Scheme results',
+      noMatches: 'No scheme matched your answers right now. You can also ask at your nearest CSC or labour office.',
+      benefitLabel: 'Benefit',
+      whyQualify: 'Why you may qualify',
+      pleaseCheck: 'Please check',
+      officialLink: 'Official website',
+      opensNewTab: '(opens in a new tab)',
+      askAbout: 'Ask KaamPe',
+      askPrompt: 'How do I apply for the "{scheme}" scheme and which documents do I need?',
+      disclaimerTitle: 'Please note',
+      errorAge: 'Enter an age between 14 and 100 years.',
+      errorIncome: 'Enter an income of 0 or more.',
+      errorInvalid: 'Some answers look incorrect. Please check and submit again.',
+      errorRateLimit: 'Too many requests. Please try again in {seconds} seconds.',
+      errorNetwork: 'Check your internet connection and try again.',
+      placeholder: 'After you fill the form, schemes for you will appear here.',
     },
     ai: {
       thinking: 'KaamPe is thinking...',
@@ -416,6 +857,24 @@ export const translations: Record<Language, Translations> = {
       spent: 'Spent',
       left: 'Left',
       cancelled: 'Cancelled.',
+      notSavedYet: 'NOT SAVED YET',
+    },
+    profileEditor: {
+      edit: 'Edit',
+      work: 'Your work',
+      state: 'State',
+      save: 'Save profile',
+      cancel: 'Cancel',
+      saved: 'Profile updated',
+      workerShort: {
+        delivery: 'Delivery',
+        driver: 'Driver',
+        construction: 'Construction',
+        domestic: 'Domestic',
+        daily_wage: 'Daily wage',
+        street_vendor: 'Street vendor',
+        other: 'Other',
+      },
     },
     common: {
       error: 'Something went wrong. Please try again.',
@@ -423,6 +882,57 @@ export const translations: Record<Language, Translations> = {
       close: 'Close',
       language: 'Language',
       profile: 'Your profile',
+    },
+    voice: {
+      start: 'Speak to type (mic)',
+      stop: 'Stop the mic',
+      listening: 'Listening… speak now',
+      stopped: 'Mic stopped',
+      errorPermission: 'Microphone permission was denied. Allow the mic in your browser settings.',
+      errorNoSpeech: 'Did not hear anything. Please speak again.',
+      errorNoMic: 'No microphone found. Please check your mic.',
+      errorNetwork: 'No internet, so voice typing is not available right now.',
+      errorGeneric: 'Voice typing did not work. Please type instead.',
+    },
+    speech: {
+      listen: 'Listen',
+      stop: 'Stop',
+      copy: 'Copy',
+      copied: 'Answer copied',
+      copyFailed: 'Could not copy. Long-press the text to copy it.',
+      speakError: 'Could not read this aloud right now.',
+    },
+    sos: {
+      buttonLabel: 'SOS: emergency numbers and share location',
+      title: 'Emergency (SOS)',
+      intro: 'Tap a number to call right away. These numbers are free.',
+      callLabel: 'Call',
+      shareLocation: 'Share my location',
+      locating: 'Finding your location…',
+      locationReady: 'Location found. Send it to someone you trust:',
+      openMap: 'View on map',
+      sendSms: 'Send by SMS',
+      shareMessage: 'I need help. My location:',
+      locationDenied: 'Location permission was denied. Allow location in your browser settings.',
+      locationUnavailable: 'Could not get your location. Please try again in a moment.',
+      locationUnsupported: 'Location is not available on this phone/browser.',
+    },
+    a11y: {
+      skipToContent: 'Skip to main content',
+      mainNav: 'Main navigation',
+      loading: 'Loading…',
+      largeText: 'Large text',
+    },
+    chat: {
+      rateLimited: 'Please wait a moment and send again.',
+      newReply: 'KaamPe replied',
+      saveFailed: 'Could not save the money entry. Please try again.',
+    },
+    forms: {
+      invalidAmount: 'Enter a valid amount (more than 0).',
+      saveFailed: 'Could not save. Please try again.',
+      amountPlaceholder: 'e.g. 850',
+      sourcePlaceholder: 'e.g. Swiggy, Zomato, Cash',
     },
   },
   pa: {
@@ -443,12 +953,18 @@ export const translations: Record<Language, Translations> = {
       step2Title: 'ਤੁਸੀਂ ਕਿਸ ਤਰ੍ਹਾਂ ਦਾ ਕੰਮ ਕਰਦੇ ਹੋ?',
       step3Title: 'ਆਪਣਾ ਰਾਜ (ਸੂਬਾ) ਚੁਣੋ',
       continue: 'ਅੱਗੇ ਵਧੋ',
+      back: 'ਪਿੱਛੇ',
+      step2Subtitle: 'ਸਹੀ ਜਾਣਕਾਰੀ ਲਈ ਆਪਣਾ ਕੰਮ ਚੁਣੋ',
+      step3Subtitle: 'ਸਰਕਾਰੀ ਸਕੀਮਾਂ ਤੁਹਾਡੇ ਰਾਜ ਦੇ ਹਿਸਾਬ ਨਾਲ ਦਿਖਣਗੀਆਂ',
+      stateLabel: 'ਰਾਜ (ਸੂਬਾ)',
+      stepProgress: 'ਕਦਮ {n} / 3',
       workerTypes: {
         delivery: 'ਡਿਲੀਵਰੀ ਪਾਰਟਨਰ',
         driver: 'ਡਰਾਈਵਰ (ਕੈਬ / ਆਟੋ)',
         construction: 'ਉਸਾਰੀ ਮਜ਼ਦੂਰ (Construction)',
         domestic: 'ਘਰੇਲੂ ਕੰਮ (Domestic work)',
         daily_wage: 'ਦਿਹਾੜੀਦਾਰ ਮਜ਼ਦੂਰ (Daily wage)',
+        street_vendor: 'ਰੇਹੜੀ-ਫੜ੍ਹੀ (Street vendor)',
         other: 'ਹੋਰ ਕੰਮ (Other)',
       },
     },
@@ -503,6 +1019,35 @@ export const translations: Record<Language, Translations> = {
       weekNet: 'ਹਫ਼ਤੇ ਦੀ ਬਚਤ',
       dailyBreakdown: 'ਦਿਨ-ਵਾਰ ਹਿਸਾਬ',
       noEntriesDay: 'ਕੋਈ ਐਂਟਰੀ ਨਹੀਂ',
+      amountPlaceholder: 'ਜਿਵੇਂ: 850',
+      sourcePlaceholder: 'ਜਿਵੇਂ: Swiggy, Zomato, Cash',
+      notePlaceholder: 'ਹੋਰ ਜਾਣਕਾਰੀ (ਵਿਕਲਪਿਕ)',
+      loading: 'ਹਿਸਾਬ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…',
+      errorLoad: 'ਹਿਸਾਬ ਲੋਡ ਨਹੀਂ ਹੋਇਆ। ਇੰਟਰਨੈੱਟ ਚੈੱਕ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+      errorAmountInvalid: '₹0 ਤੋਂ ਵੱਧ ਸਹੀ ਰਕਮ ਲਿਖੋ (ਵੱਧ ਤੋਂ ਵੱਧ 2 ਦਸ਼ਮਲਵ)।',
+      errorSaveFailed: 'ਐਂਟਰੀ ਸੇਵ ਨਹੀਂ ਹੋਈ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+      errorDelete: 'ਐਂਟਰੀ ਹਟਾਈ ਨਹੀਂ ਜਾ ਸਕੀ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+      deleteEntryLabel: '{type} {amount} ({date}) ਹਟਾਓ',
+      deleteConfirmBtn: 'ਹਾਂ, ਹਟਾਓ',
+      typeEarning: 'ਕਮਾਈ',
+      typeExpense: 'ਖਰਚਾ',
+      today: 'ਅੱਜ',
+      chartTitle: '7 ਦਿਨਾਂ ਦੀ ਬਚਤ',
+      chartCaption: 'ਪਿਛਲੇ 7 ਦਿਨਾਂ ਦੀ ਕਮਾਈ, ਖਰਚਾ ਅਤੇ ਬਚਤ',
+      chartEmpty: 'ਇਸ ਹਫ਼ਤੇ ਅਜੇ ਕੋਈ ਐਂਟਰੀ ਨਹੀਂ ਹੈ।',
+      colDay: 'ਦਿਨ',
+      colEarned: 'ਕਮਾਈ',
+      colSpent: 'ਖਰਚਾ',
+      colNet: 'ਬਚਤ',
+      platformTitle: 'ਪਲੇਟਫਾਰਮ ਅਨੁਸਾਰ ਕਮਾਈ (7 ਦਿਨ)',
+      platformUnspecified: 'ਬਿਨਾਂ ਨਾਮ ਦਾ ਸਰੋਤ',
+      platformDays: '{n} ਦਿਨ ਕੰਮ',
+      platformEarnPerDay: '{amount}/ਦਿਨ ਕਮਾਈ',
+      platformNetPerDay: 'ਲਗਭਗ {amount}/ਦਿਨ ਬਚਤ',
+      platformShare: 'ਹਫ਼ਤੇ ਦੀ ਕਮਾਈ ਦਾ {pct}%',
+      platformBest: 'ਸਭ ਤੋਂ ਵੱਧ ਬਚਤ',
+      platformNote: 'ਬਚਤ/ਦਿਨ ਇੱਕ ਅੰਦਾਜ਼ਾ ਹੈ: ਹਰ ਦਿਨ ਦਾ ਖਰਚਾ ਉਸ ਦਿਨ ਦੀ ਕਮਾਈ ਦੇ ਹਿਸਾਬ ਨਾਲ ਪਲੇਟਫਾਰਮਾਂ ਵਿੱਚ ਵੰਡਿਆ ਗਿਆ ਹੈ।',
+      platformEmpty: 'ਕਮਾਈ ਜੋੜਦੇ ਸਮੇਂ ਪਲੇਟਫਾਰਮ ਦਾ ਨਾਮ ਲਿਖੋ (ਜਿਵੇਂ Swiggy), ਇੱਥੇ ਤੁਲਨਾ ਦਿਖੇਗੀ।',
       categories: {
         Fuel: 'ਪੈਟਰੋਲ / ਡੀਜ਼ਲ',
         Food: 'ਖਾਣਾ / ਚਾਹ',
@@ -541,6 +1086,71 @@ export const translations: Record<Language, Translations> = {
       docAskPrompt: 'ਮੈਂ ਇੱਕ ਦਸਤਾਵੇਜ਼ ਅੱਪਲੋਡ ਕੀਤਾ ਹੈ: "{doc}"। ਇਸ ਬਾਰੇ ਹੋਰ ਦੱਸੋ।',
       resultPlaceholderDoc: 'ਦਸਤਾਵੇਜ਼ ਅੱਪਲੋਡ ਕਰਨ ਤੋਂ ਬਾਅਦ ਸੌਖੀ ਭਾਸ਼ਾ ਵਿੱਚ ਜਵਾਬ ਇੱਥੇ ਦਿਖੇਗਾ।',
       resultPlaceholderDispute: 'ਤੁਹਾਡਾ ਡਰਾਫਟ ਸੁਨੇਹਾ ਇੱਥੇ ਦਿਖੇਗਾ। ਤੁਸੀਂ ਇਸਨੂੰ ਬਦਲ ਕੇ ਕਾਪੀ ਕਰ ਸਕਦੇ ਹੋ।',
+      tabSchemes: 'ਸਰਕਾਰੀ ਸਕੀਮਾਂ',
+      tabListLabel: 'ਮਦਦ ਦੇ ਵਿਕਲਪ',
+      docFileHint: 'PDF, JPG, PNG (ਵੱਧ ਤੋਂ ਵੱਧ 10MB)',
+      docTakePhoto: 'ਕੈਮਰੇ ਨਾਲ ਫੋਟੋ ਲਓ',
+      docSelected: 'ਚੁਣੀ ਗਈ ਫਾਈਲ: {name}',
+      docTooLarge: 'ਫਾਈਲ 10MB ਤੋਂ ਵੱਡੀ ਹੈ। ਛੋਟੀ ਫਾਈਲ ਚੁਣੋ।',
+      docTypeError: 'ਸਿਰਫ਼ PDF, JPG ਜਾਂ PNG ਫਾਈਲ ਚੁਣੋ।',
+      docUploadFailed: 'ਦਸਤਾਵੇਜ਼ ਪੜ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+      docComplaintTitle: 'ਕੀ ਇਸ ਦਸਤਾਵੇਜ਼ ਬਾਰੇ ਕੋਈ ਸ਼ਿਕਾਇਤ ਹੈ?',
+      docComplaintHint: 'ਇਸ ਦਸਤਾਵੇਜ਼ ਦੀ ਜਾਣਕਾਰੀ ਨਾਲ ਸ਼ਿਕਾਇਤ ਦਾ ਡਰਾਫਟ ਸ਼ੁਰੂ ਕਰੋ',
+      docComplaintBtn: 'ਸ਼ਿਕਾਇਤ ਲਿਖੋ',
+      docComplaintPrefill: 'ਮੈਂ ਇਸ ਦਸਤਾਵੇਜ਼ ਬਾਰੇ ਸ਼ਿਕਾਇਤ ਕਰਨੀ ਹੈ: {doc}{money}\nਮੇਰੀ ਸਮੱਸਿਆ: ',
+      docComplaintMoney: '\nਪੈਸੇ ਦੀਆਂ ਗੱਲਾਂ: {items}',
+      evidenceLabel: 'ਪਿਛਲੇ 7 ਦਿਨਾਂ ਦੀ ਕਮਾਈ ਸਬੂਤ ਵਜੋਂ ਜੋੜੋ',
+      evidenceHint: 'KaamPe ਵਿੱਚ ਦਰਜ ਤੁਹਾਡਾ ਹਿਸਾਬ ਤੁਹਾਡੀ ਗੱਲ ਦੇ ਨਾਲ ਭੇਜਿਆ ਜਾਵੇਗਾ।',
+      evidencePreviewTitle: 'ਇਹ ਜੋੜਿਆ ਜਾਵੇਗਾ:',
+      evidenceTemplate: 'ਮੇਰੇ KaamPe ਰਿਕਾਰਡ ਅਨੁਸਾਰ ਪਿਛਲੇ 7 ਦਿਨ ({from} ਤੋਂ {to}): ਕੁੱਲ ਕਮਾਈ {earned}, ਖਰਚਾ {spent}, ਬਚਤ {net}; {days} ਦਿਨ ਕੰਮ ਦਰਜ ਹੈ।',
+      evidencePlatforms: ' ਪਲੇਟਫਾਰਮ ਅਨੁਸਾਰ ਕਮਾਈ: {list}।',
+      evidenceEmpty: 'ਪਿਛਲੇ 7 ਦਿਨਾਂ ਵਿੱਚ ਕੋਈ ਕਮਾਈ ਦਰਜ ਨਹੀਂ, ਇਸ ਲਈ ਕੁਝ ਨਹੀਂ ਜੋੜਿਆ ਜਾਵੇਗਾ।',
+      evidenceLoading: 'ਹਿਸਾਬ ਕੱਢਿਆ ਜਾ ਰਿਹਾ ਹੈ…',
+      evidenceError: 'ਕਮਾਈ ਦਾ ਹਿਸਾਬ ਲੋਡ ਨਹੀਂ ਹੋਇਆ। ਡਰਾਫਟ ਬਿਨਾਂ ਸਬੂਤ ਦੇ ਬਣੇਗਾ।',
+      disputeNotGrievance: 'ਇਹ ਪੇਮੈਂਟ ਜਾਂ ਕੰਮ ਦੀ ਸ਼ਿਕਾਇਤ ਵਰਗਾ ਨਹੀਂ ਲੱਗਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਲਿਖੋ: ਕਿਹੜਾ ਕੰਮ, ਕਿੰਨੇ ਪੈਸੇ, ਅਤੇ ਕਿੰਨੇ ਦਿਨਾਂ ਤੋਂ ਬਕਾਇਆ ਹੈ।',
+      disputeInvalid: 'ਕਿਰਪਾ ਕਰਕੇ ਆਪਣੀ ਸਮੱਸਿਆ ਛੋਟੇ ਵਿੱਚ ਲਿਖੋ (1500 ਅੱਖਰਾਂ ਤੱਕ)।',
+      disputeDefaultSummary: 'ਪੇਮੈਂਟ ਦੀ ਸਮੱਸਿਆ',
+      rateLimited: 'ਬਹੁਤ ਜਲਦੀ ਬੇਨਤੀ ਹੋ ਗਈ। ਕੁਝ ਸਕਿੰਟ ਰੁਕ ਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+      docQuestionLabel: 'ਇਸ ਦਸਤਾਵੇਜ਼ ਬਾਰੇ ਤੁਹਾਡਾ ਸਵਾਲ',
+      docQuestionPlaceholder: 'ਜਿਵੇਂ: ਕੀ ਇਹ ਜੁਰਮਾਨਾ ਸਹੀ ਹੈ?',
+      downloadTxt: 'ਡਾਊਨਲੋਡ (.txt)',
+    },
+    schemes: {
+      title: 'ਕਿਹੜੀ ਸਰਕਾਰੀ ਸਕੀਮ ਮਿਲ ਸਕਦੀ ਹੈ?',
+      intro: 'ਕੁਝ ਸਵਾਲਾਂ ਦੇ ਜਵਾਬ ਦਿਓ। ਸਕੀਮਾਂ ਸਿਰਫ਼ ਤੁਹਾਡੇ ਜਵਾਬਾਂ ਅਨੁਸਾਰ ਦਿਖਣਗੀਆਂ; ਆਖਰੀ ਫੈਸਲਾ ਸਰਕਾਰੀ ਦਫ਼ਤਰ ਜਾਂ ਪੋਰਟਲ ਕਰੇਗਾ।',
+      aboutYouLegend: 'ਤੁਹਾਡੇ ਬਾਰੇ',
+      ageLabel: 'ਉਮਰ (ਸਾਲ)',
+      incomeLabel: 'ਮਹੀਨੇ ਦੀ ਕਮਾਈ (₹)',
+      optionalHint: 'ਵਿਕਲਪਿਕ, ਪਰ ਇਸ ਨਾਲ ਸਹੀ ਸਕੀਮ ਮਿਲਦੀ ਹੈ',
+      workerTypeLabel: 'ਕੰਮ',
+      stateLabel: 'ਰਾਜ (ਸੂਬਾ)',
+      epfoLegend: 'ਕੀ ਤੁਹਾਡਾ PF (EPFO) ਕੱਟਦਾ ਹੈ?',
+      epfoHint: 'ਤਨਖਾਹ ਸਲਿੱਪ ਉੱਤੇ "PF" ਜਾਂ "EPF" ਲਿਖਿਆ ਹੁੰਦਾ ਹੈ',
+      esicLegend: 'ਕੀ ਤੁਹਾਡੇ ਕੋਲ ESIC (ESI ਕਾਰਡ) ਹੈ?',
+      esicHint: 'ਕੰਪਨੀ ਰਾਹੀਂ ਮਿਲਿਆ ESI ਹਸਪਤਾਲ ਵਾਲਾ ਕਾਰਡ',
+      taxLegend: 'ਕੀ ਤੁਸੀਂ ਇਨਕਮ ਟੈਕਸ ਭਰਦੇ ਹੋ?',
+      yes: 'ਹਾਂ',
+      no: 'ਨਹੀਂ',
+      unknown: 'ਪਤਾ ਨਹੀਂ',
+      submit: 'ਮੇਰੀਆਂ ਸਕੀਮਾਂ ਵੇਖੋ',
+      checking: 'ਚੈੱਕ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ…',
+      resultsTitle: '{n} ਸਕੀਮਾਂ ਤੁਹਾਡੇ ਲਈ ਕੰਮ ਦੀਆਂ ਹੋ ਸਕਦੀਆਂ ਹਨ',
+      resultsRegionLabel: 'ਸਕੀਮਾਂ ਦੇ ਨਤੀਜੇ',
+      noMatches: 'ਤੁਹਾਡੇ ਜਵਾਬਾਂ ਅਨੁਸਾਰ ਅਜੇ ਕੋਈ ਸਕੀਮ ਮੇਲ ਨਹੀਂ ਖਾਂਦੀ। ਨੇੜਲੇ CSC ਜਾਂ ਲੇਬਰ ਦਫ਼ਤਰ ਤੋਂ ਵੀ ਪੁੱਛ ਸਕਦੇ ਹੋ।',
+      benefitLabel: 'ਫਾਇਦਾ',
+      whyQualify: 'ਤੁਸੀਂ ਯੋਗ ਕਿਉਂ ਹੋ ਸਕਦੇ ਹੋ',
+      pleaseCheck: 'ਇਹ ਜ਼ਰੂਰ ਚੈੱਕ ਕਰੋ',
+      officialLink: 'ਅਧਿਕਾਰਤ ਵੈੱਬਸਾਈਟ',
+      opensNewTab: '(ਨਵੀਂ ਟੈਬ ਵਿੱਚ ਖੁੱਲ੍ਹੇਗੀ)',
+      askAbout: 'KaamPe ਤੋਂ ਪੁੱਛੋ',
+      askPrompt: '"{scheme}" ਸਕੀਮ ਲਈ ਅਰਜ਼ੀ ਕਿਵੇਂ ਦੇਵਾਂ ਅਤੇ ਕਿਹੜੇ ਦਸਤਾਵੇਜ਼ ਚਾਹੀਦੇ ਹਨ?',
+      disclaimerTitle: 'ਧਿਆਨ ਦਿਓ',
+      errorAge: 'ਉਮਰ 14 ਤੋਂ 100 ਸਾਲ ਦੇ ਵਿਚਕਾਰ ਲਿਖੋ।',
+      errorIncome: 'ਕਮਾਈ 0 ਜਾਂ ਉਸ ਤੋਂ ਵੱਧ ਲਿਖੋ।',
+      errorInvalid: 'ਕੁਝ ਜਵਾਬ ਸਹੀ ਨਹੀਂ ਲੱਗੇ। ਚੈੱਕ ਕਰਕੇ ਦੁਬਾਰਾ ਭੇਜੋ।',
+      errorRateLimit: 'ਬਹੁਤ ਜਲਦੀ ਦੁਬਾਰਾ ਪੁੱਛਿਆ। {seconds} ਸਕਿੰਟ ਬਾਅਦ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+      errorNetwork: 'ਇੰਟਰਨੈੱਟ ਕਨੈਕਸ਼ਨ ਚੈੱਕ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+      placeholder: 'ਫਾਰਮ ਭਰਨ ਤੋਂ ਬਾਅਦ ਤੁਹਾਡੇ ਲਈ ਸਕੀਮਾਂ ਇੱਥੇ ਦਿਖਣਗੀਆਂ।',
     },
     ai: {
       thinking: 'ਕਾਮਪੇਅ ਸੋਚ ਰਿਹਾ ਹੈ...',
@@ -557,6 +1167,24 @@ export const translations: Record<Language, Translations> = {
       spent: 'ਖਰਚਾ',
       left: 'ਬਚਿਆ',
       cancelled: 'ਰੱਦ ਕਰ ਦਿੱਤਾ ਗਿਆ।',
+      notSavedYet: 'ਅਜੇ ਸੇਵ ਨਹੀਂ',
+    },
+    profileEditor: {
+      edit: 'ਬਦਲੋ',
+      work: 'ਤੁਹਾਡਾ ਕੰਮ',
+      state: 'ਰਾਜ',
+      save: 'ਪ੍ਰੋਫਾਈਲ ਸੇਵ ਕਰੋ',
+      cancel: 'ਰੱਦ ਕਰੋ',
+      saved: 'ਪ੍ਰੋਫਾਈਲ ਅੱਪਡੇਟ ਹੋ ਗਈ',
+      workerShort: {
+        delivery: 'ਡਿਲੀਵਰੀ',
+        driver: 'ਡਰਾਈਵਰ',
+        construction: 'ਉਸਾਰੀ',
+        domestic: 'ਘਰੇਲੂ ਕੰਮ',
+        daily_wage: 'ਦਿਹਾੜੀ',
+        street_vendor: 'ਰੇਹੜੀ-ਫੜ੍ਹੀ',
+        other: 'ਹੋਰ',
+      },
     },
     common: {
       error: 'ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
@@ -564,6 +1192,57 @@ export const translations: Record<Language, Translations> = {
       close: 'ਬੰਦ ਕਰੋ',
       language: 'ਭਾਸ਼ਾ',
       profile: 'ਤੁਹਾਡੀ ਪ੍ਰੋਫਾਈਲ',
+    },
+    voice: {
+      start: 'ਬੋਲ ਕੇ ਲਿਖੋ (ਮਾਈਕ)',
+      stop: 'ਮਾਈਕ ਬੰਦ ਕਰੋ',
+      listening: 'ਸੁਣ ਰਹੇ ਹਾਂ… ਬੋਲੋ',
+      stopped: 'ਮਾਈਕ ਬੰਦ ਹੋ ਗਿਆ',
+      errorPermission: 'ਮਾਈਕ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਮਿਲੀ। ਬ੍ਰਾਊਜ਼ਰ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਮਾਈਕ ਚਾਲੂ ਕਰੋ।',
+      errorNoSpeech: 'ਕੁਝ ਸੁਣਾਈ ਨਹੀਂ ਦਿੱਤਾ। ਦੁਬਾਰਾ ਬੋਲੋ।',
+      errorNoMic: 'ਮਾਈਕ ਨਹੀਂ ਮਿਲਿਆ। ਮਾਈਕ ਚੈੱਕ ਕਰੋ।',
+      errorNetwork: 'ਇੰਟਰਨੈੱਟ ਨਹੀਂ ਹੈ, ਇਸ ਲਈ ਬੋਲ ਕੇ ਲਿਖਣਾ ਹੁਣ ਨਹੀਂ ਚੱਲੇਗਾ।',
+      errorGeneric: 'ਬੋਲ ਕੇ ਲਿਖਣਾ ਨਹੀਂ ਚੱਲਿਆ। ਟਾਈਪ ਕਰਕੇ ਲਿਖੋ।',
+    },
+    speech: {
+      listen: 'ਸੁਣੋ',
+      stop: 'ਰੋਕੋ',
+      copy: 'ਕਾਪੀ',
+      copied: 'ਜਵਾਬ ਕਾਪੀ ਹੋ ਗਿਆ',
+      copyFailed: 'ਕਾਪੀ ਨਹੀਂ ਹੋਇਆ। ਟੈਕਸਟ ਨੂੰ ਦਬਾ ਕੇ ਕਾਪੀ ਕਰੋ।',
+      speakError: 'ਹੁਣ ਆਵਾਜ਼ ਵਿੱਚ ਸੁਣਾਇਆ ਨਹੀਂ ਜਾ ਸਕਿਆ।',
+    },
+    sos: {
+      buttonLabel: 'SOS: ਐਮਰਜੈਂਸੀ ਨੰਬਰ ਅਤੇ ਲੋਕੇਸ਼ਨ ਭੇਜੋ',
+      title: 'ਐਮਰਜੈਂਸੀ (SOS)',
+      intro: 'ਤੁਰੰਤ ਕਾਲ ਕਰਨ ਲਈ ਨੰਬਰ ਦਬਾਓ। ਇਹ ਨੰਬਰ ਮੁਫ਼ਤ ਹਨ।',
+      callLabel: 'ਕਾਲ ਕਰੋ',
+      shareLocation: 'ਆਪਣੀ ਲੋਕੇਸ਼ਨ ਭੇਜੋ',
+      locating: 'ਲੋਕੇਸ਼ਨ ਲੱਭ ਰਹੇ ਹਾਂ…',
+      locationReady: 'ਲੋਕੇਸ਼ਨ ਮਿਲ ਗਈ। ਕਿਸੇ ਭਰੋਸੇਯੋਗ ਨੂੰ ਭੇਜੋ:',
+      openMap: 'ਨਕਸ਼ੇ ਤੇ ਦੇਖੋ',
+      sendSms: 'SMS ਰਾਹੀਂ ਭੇਜੋ',
+      shareMessage: 'ਮੈਨੂੰ ਮਦਦ ਚਾਹੀਦੀ ਹੈ। ਮੇਰੀ ਲੋਕੇਸ਼ਨ:',
+      locationDenied: 'ਲੋਕੇਸ਼ਨ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਮਿਲੀ। ਬ੍ਰਾਊਜ਼ਰ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਲੋਕੇਸ਼ਨ ਚਾਲੂ ਕਰੋ।',
+      locationUnavailable: 'ਲੋਕੇਸ਼ਨ ਨਹੀਂ ਮਿਲੀ। ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+      locationUnsupported: 'ਇਸ ਫ਼ੋਨ/ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਲੋਕੇਸ਼ਨ ਨਹੀਂ ਚੱਲਦੀ।',
+    },
+    a11y: {
+      skipToContent: 'ਸਿੱਧਾ ਮੁੱਖ ਸਮੱਗਰੀ ਤੇ ਜਾਓ',
+      mainNav: 'ਮੁੱਖ ਨੈਵੀਗੇਸ਼ਨ',
+      loading: 'ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…',
+      largeText: 'ਵੱਡੇ ਅੱਖਰ',
+    },
+    chat: {
+      rateLimited: 'ਥੋੜ੍ਹਾ ਰੁਕ ਕੇ ਦੁਬਾਰਾ ਭੇਜੋ।',
+      newReply: 'KaamPe ਦਾ ਜਵਾਬ ਆ ਗਿਆ',
+      saveFailed: 'ਪੈਸਾ ਸੇਵ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+    },
+    forms: {
+      invalidAmount: 'ਸਹੀ ਰਕਮ ਲਿਖੋ (0 ਤੋਂ ਵੱਧ)।',
+      saveFailed: 'ਸੇਵ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+      amountPlaceholder: 'ਜਿਵੇਂ 850',
+      sourcePlaceholder: 'ਜਿਵੇਂ Swiggy, Zomato, Cash',
     },
   },
 };

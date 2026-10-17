@@ -6,53 +6,62 @@ export default {
   ],
   theme: {
     extend: {
+      // "Neel Bahi" palette: indigo ledger ink on cool paper, marigold for fills only
       colors: {
-        canvas: '#f5f1ec',
+        canvas: '#EEF0F7',
         surface: {
           1: '#ffffff',
-          2: '#ebe7e1',
+          2: '#F4F5FA',
         },
         ink: {
-          DEFAULT: '#111111',
-          muted: '#4a4a47',
-          subtle: '#52524f',
-          tertiary: '#52524f',
+          DEFAULT: '#17214D',
+          hover: '#0F1650',
+          muted: '#4D5579',
+          subtle: '#5A6285',
+          tertiary: '#5A6285',
         },
         hairline: {
-          DEFAULT: '#d3cec6',
-          soft: '#ebe7e1',
+          DEFAULT: '#D9DDEB',
+          soft: '#E6E9F2',
         },
+        // Text-safe deep marigold for labels/links; use `marigold` for filled surfaces
         accent: {
-          DEFAULT: '#b83808',
-          hover: '#9e2e05',
-          light: '#faebe5',
-          subtle: '#f7ded3',
+          DEFAULT: '#8F5400',
+          hover: '#6E4000',
+          light: '#FFF4D6',
+          subtle: '#F6DFA0',
         },
+        marigold: {
+          DEFAULT: '#F2A900',
+          hover: '#E09C00',
+        },
+        rule: '#E8A0A0',
         semantic: {
-          error: '#c41c1c',
-          success: '#166534',
+          error: '#B3261E',
+          success: '#1D7044',
         }
       },
       fontFamily: {
         sans: [
-          'Inter',
+          'Anek Latin',
+          'Anek Devanagari',
+          'Anek Gurmukhi',
           '-apple-system',
           'BlinkMacSystemFont',
           'Segoe UI',
-          'Roboto',
           'Noto Sans',
-          'Noto Sans Devanagari',
-          'Noto Sans Gurmukhi',
           'sans-serif'
         ],
       },
       borderRadius: {
-        'card': '14px',
-        'subtle': '8px',
+        'card': '18px',
+        'subtle': '12px',
       },
       boxShadow: {
-        'subtle': '0 1px 3px rgba(0, 0, 0, 0.05)',
-        'float': '0 4px 12px rgba(0, 0, 0, 0.06)',
+        'subtle': '0 1px 2px rgba(23, 33, 77, 0.06)',
+        'float': '0 18px 48px rgba(23, 33, 77, 0.18)',
+        'offset': '6px 6px 0 0 #17214D',
+        'offset-sm': '4px 4px 0 0 #17214D',
       }
     },
   },

@@ -35,7 +35,7 @@ db.exec(`
     id TEXT PRIMARY KEY,
     session_id TEXT NOT NULL,
     type TEXT NOT NULL CHECK(type IN ('earning', 'expense')),
-    amount_paise INTEGER NOT NULL,
+    amount_paise INTEGER NOT NULL CHECK(amount_paise > 0),
     category_or_source TEXT,
     note TEXT,
     date TEXT NOT NULL,
@@ -44,7 +44,8 @@ db.exec(`
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
   );
 
-  CREATE INDEX IF NOT EXISTS idx_money_entries_session_date 
+  -- Every money query is scoped by session and (for summaries) a date window.
+  CREATE INDEX IF NOT EXISTS idx_money_entries_session_date
   ON money_entries(session_id, date);
 
   CREATE TABLE IF NOT EXISTS conversations (
@@ -67,8 +68,32 @@ db.exec(`
     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
   );
 
-  CREATE INDEX IF NOT EXISTS idx_messages_conversation 
+  CREATE INDEX IF NOT EXISTS idx_messages_conversation
   ON messages(conversation_id, created_at);
+
+  -- Session-scoped lookups and ON DELETE CASCADE from sessions need these.
+  CREATE INDEX IF NOT EXISTS idx_conversations_session
+  ON conversations(session_id, updated_at);
+
+  CREATE INDEX IF NOT EXISTS idx_messages_session
+  ON messages(session_id);
+
+  -- Text excerpts extracted from an explained document, kept only for follow-up
+  -- questions. The uploaded file itself is never stored. Rows expire (expires_at).
+  CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    passages TEXT NOT NULL,
+    page_count INTEGER,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_documents_session
+  ON documents(session_id, created_at);
 `);
 
 console.log('[DB] SQLite database initialized at:', dbPath);

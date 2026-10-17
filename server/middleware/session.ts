@@ -20,49 +20,66 @@ declare global {
   }
 }
 
-const COOKIE_NAME = 'kaampe_session_id';
+export const SESSION_COOKIE_NAME = 'kaampe_session_id';
+const SESSION_ID_RE = /^[a-zA-Z0-9_-]{16,64}$/;
+const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+/** Methods that never write data; they don't need a persisted session row. */
+const READ_ONLY_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+export function isValidSessionId(value: unknown): value is string {
+  return typeof value === 'string' && SESSION_ID_RE.test(value);
+}
+
+function defaultProfile(id: string, now: number): KaampeSession {
+  return { id, language: 'hi', workerType: 'delivery', state: 'Punjab', createdAt: now, updatedAt: now };
+}
+
+/**
+ * Guest session middleware (no auth). Identity comes from the `X-Session-ID` header
+ * or the httpOnly `kaampe_session_id` cookie; otherwise a random id is issued.
+ *
+ * - The sessions row is created lazily on the first state-changing request
+ *   (POST/PUT/PATCH/DELETE), so anonymous page loads and GETs with arbitrary ids
+ *   never grow the database.
+ * - The cookie is only (re)written when its value changes.
+ */
 export function sessionMiddleware(req: Request, res: Response, next: NextFunction) {
-  let sessionId = req.headers['x-session-id'] || req.cookies?.[COOKIE_NAME];
+  const headerId = req.headers['x-session-id'];
+  const cookieId = req.cookies?.[SESSION_COOKIE_NAME];
 
-  if (!sessionId || typeof sessionId !== 'string' || !/^[a-zA-Z0-9_-]{16,64}$/.test(sessionId)) {
-    // Generate new cryptographically random 24-byte hex session id
+  let sessionId: string;
+  let isNewId = false;
+  if (isValidSessionId(headerId)) {
+    sessionId = headerId;
+  } else if (isValidSessionId(cookieId)) {
+    sessionId = cookieId;
+  } else {
+    // Cryptographically random 128-bit id
     sessionId = 'kp_' + crypto.randomBytes(16).toString('hex');
+    isNewId = true;
   }
 
-  // Ensure cookie is attached to response
-  res.cookie(COOKIE_NAME, sessionId, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    path: '/',
-  });
+  if (cookieId !== sessionId) {
+    res.cookie(SESSION_COOKIE_NAME, sessionId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: SESSION_MAX_AGE_MS,
+      path: '/',
+    });
+  }
 
   // Also return in header for easy client / test access
   res.setHeader('X-Session-ID', sessionId);
   req.sessionId = sessionId;
 
-  // Retrieve or create session in DB
-  const stmt = db.prepare('SELECT id, language, worker_type, state, created_at, updated_at FROM sessions WHERE id = ?');
-  const existing = stmt.get(sessionId) as any;
+  const existing = isNewId
+    ? undefined
+    : (db
+        .prepare('SELECT id, language, worker_type, state, created_at, updated_at FROM sessions WHERE id = ?')
+        .get(sessionId) as any);
 
-  const now = Date.now();
-  if (!existing) {
-    db.prepare(`
-      INSERT INTO sessions (id, language, worker_type, state, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(sessionId, 'hi', 'delivery', 'Punjab', now, now);
-
-    req.sessionProfile = {
-      id: sessionId,
-      language: 'hi',
-      workerType: 'delivery',
-      state: 'Punjab',
-      createdAt: now,
-      updatedAt: now,
-    };
-  } else {
+  if (existing) {
     req.sessionProfile = {
       id: existing.id,
       language: existing.language,
@@ -71,6 +88,18 @@ export function sessionMiddleware(req: Request, res: Response, next: NextFunctio
       createdAt: existing.created_at,
       updatedAt: existing.updated_at,
     };
+    return next();
+  }
+
+  const now = Date.now();
+  req.sessionProfile = defaultProfile(sessionId, now);
+
+  if (!READ_ONLY_METHODS.has(req.method)) {
+    // Money entries / conversations reference sessions(id), so persist before any write.
+    db.prepare(`
+      INSERT OR IGNORE INTO sessions (id, language, worker_type, state, created_at, updated_at)
+      VALUES (?, 'hi', 'delivery', 'Punjab', ?, ?)
+    `).run(sessionId, now, now);
   }
 
   next();

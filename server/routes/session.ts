@@ -6,7 +6,7 @@ const router = Router();
 
 const OnboardingSchema = z.object({
   language: z.enum(['hi', 'en', 'pa']),
-  workerType: z.enum(['delivery', 'driver', 'construction', 'domestic', 'daily_wage', 'other']),
+  workerType: z.enum(['delivery', 'driver', 'construction', 'domestic', 'daily_wage', 'street_vendor', 'other']),
   state: z.string().min(2).max(50),
 });
 
